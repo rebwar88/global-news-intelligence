@@ -1,0 +1,12 @@
+id: sorani-qa
+name: Kurdish Sorani QA Agent
+version: 0.1.0
+enabled: false
+description: "Evaluate Sorani spelling, grammar, naturalness and semantic fidelity."
+entrypoint: "sorani-qa:run"
+capabilities: []
+skills: []
+permissions:
+  - editorial.read
+  - qa.write
+contract_version: "1.0"
