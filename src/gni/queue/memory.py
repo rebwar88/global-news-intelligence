@@ -45,6 +45,8 @@ class InMemoryJobQueue:
     def release(self, reservation: QueueReservation, *, delay_seconds: int = 0) -> None:
         if delay_seconds < 0:
             raise ValueError("delay_seconds cannot be negative.")
+        if delay_seconds:
+            raise NotImplementedError("Delayed delivery is not supported by the test queue.")
         job = self._take_reserved(reservation)
         self._pending.append(job)
 
