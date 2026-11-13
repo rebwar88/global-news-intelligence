@@ -1,13 +1,12 @@
 """Versioned job contract and safe state transitions."""
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 from uuid import uuid4
-import json
-
 
 class JobStatus(StrEnum):
     QUEUED = "queued"
@@ -29,7 +28,7 @@ class Job:
     status: JobStatus = JobStatus.QUEUED
     attempt: int = 0
     max_attempts: int = 3
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     trace_id: str = field(default_factory=lambda: str(uuid4()))
     contract_version: str = "1.0"
 
@@ -37,9 +36,9 @@ class Job:
         if not self.agent_id or len(self.agent_id) > 63:
             raise ValueError("agent_id must be a non-empty identifier.")
         if not isinstance(self.status, JobStatus):
-            raise ValueError("status must be a JobStatus value.")
+            raise TypeError("status must be a JobStatus value.")
         if not isinstance(self.payload, dict):
-            raise ValueError("Job payload must be a mapping.")
+            raise TypeError("Job payload must be a mapping.")
         try:
             json.dumps(self.payload, allow_nan=False)
         except (TypeError, ValueError) as exc:
@@ -47,7 +46,7 @@ class Job:
         if self.attempt < 0 or self.max_attempts < 1 or self.attempt > self.max_attempts:
             raise ValueError("Invalid job attempt limits.")
 
-    def start(self) -> "Job":
+    def start(self) -> Job:
         if self.status not in {JobStatus.QUEUED, JobStatus.RETRYABLE}:
             raise ValueError(f"Cannot start job from {self.status}.")
         if self.attempt >= self.max_attempts:
