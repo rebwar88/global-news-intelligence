@@ -1,0 +1,12 @@
+id: media-collection
+name: Media Collection Agent
+version: 0.1.0
+enabled: false
+description: "Collect media candidates and provenance metadata."
+entrypoint: "media-collection:run"
+capabilities: []
+skills: []
+permissions:
+  - media_sources.read
+  - media.write
+contract_version: "1.0"
