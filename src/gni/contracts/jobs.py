@@ -8,6 +8,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
+
 class JobStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
@@ -53,7 +54,7 @@ class Job:
             raise ValueError("Job has exhausted its retry limit.")
         return replace(self, status=JobStatus.RUNNING, attempt=self.attempt + 1)
 
-    def succeed(self) -> "Job":
+    def succeed(self) -> Job:
         self._require_running()
         return replace(self, status=JobStatus.SUCCEEDED)
 
