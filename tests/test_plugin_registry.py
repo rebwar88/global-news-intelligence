@@ -89,3 +89,11 @@ def test_activation_requires_explicit_approval_and_grants():
     assert loader.is_active("example-agent") is True
     loader.deactivate("example-agent")
     assert loader.is_active("example-agent") is False
+
+
+def test_repository_agent_manifests_all_validate():
+    repository_root = Path(__file__).resolve().parents[1]
+    loader = PluginLoader()
+    issues = loader.discover(repository_root / "agents")
+    assert issues == ()
+    assert len(loader.registry) == 12
