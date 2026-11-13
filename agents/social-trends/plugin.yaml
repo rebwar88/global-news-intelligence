@@ -3,7 +3,7 @@ name: Social Trends Intelligence Agent
 version: 0.1.0
 enabled: false
 description: "Detect and analyze regional and global social-media trends."
-entrypoint: "social-trends:run"
+entrypoint: "gni.agents.social_trends:run"
 capabilities: []
 skills: []
 permissions:
