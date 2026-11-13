@@ -3,7 +3,7 @@ name: News Collection Agent
 version: 0.1.0
 enabled: false
 description: "Collect permitted news sources and normalize incoming items."
-entrypoint: "news-collection:run"
+entrypoint: "gni.agents.news_collection:run"
 capabilities: []
 skills: []
 permissions:
