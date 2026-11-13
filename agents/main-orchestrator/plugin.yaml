@@ -3,7 +3,7 @@ name: Main Orchestrator
 version: 0.1.0
 enabled: false
 description: Coordinates scheduling, job routing, agent lifecycle and workflow execution.
-entrypoint: main_orchestrator:run
+entrypoint: "gni.agents.main_orchestrator:run"
 capabilities:
   - job_dispatch
   - workflow_coordination
