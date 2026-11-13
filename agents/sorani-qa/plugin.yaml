@@ -3,7 +3,7 @@ name: Kurdish Sorani QA Agent
 version: 0.1.0
 enabled: false
 description: "Evaluate Sorani spelling, grammar, naturalness and semantic fidelity."
-entrypoint: "sorani-qa:run"
+entrypoint: "gni.agents.sorani_qa:run"
 capabilities: []
 skills: []
 permissions:
