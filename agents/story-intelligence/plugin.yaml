@@ -1,0 +1,12 @@
+id: story-intelligence
+name: Story Intelligence Agent
+version: 0.1.0
+enabled: false
+description: "Deduplicate, cluster and track canonical stories."
+entrypoint: "story-intelligence:run"
+capabilities: []
+skills: []
+permissions:
+  - articles.read
+  - stories.write
+contract_version: "1.0"
