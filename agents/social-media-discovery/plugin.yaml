@@ -1,0 +1,12 @@
+id: social-media-discovery
+name: Social Media Discovery Agent
+version: 0.1.0
+enabled: false
+description: "Find relevant public social posts and eyewitness material."
+entrypoint: "social-media-discovery:run"
+capabilities: []
+skills: []
+permissions:
+  - social_sources.read
+  - story_links.write
+contract_version: "1.0"
