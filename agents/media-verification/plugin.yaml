@@ -1,0 +1,12 @@
+id: media-verification
+name: Media Verification Agent
+version: 0.1.0
+enabled: false
+description: "Assess media context, provenance, manipulation clues and rights."
+entrypoint: "media-verification:run"
+capabilities: []
+skills: []
+permissions:
+  - media.read
+  - media_verification.write
+contract_version: "1.0"
