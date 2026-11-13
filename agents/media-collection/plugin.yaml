@@ -3,7 +3,7 @@ name: Media Collection Agent
 version: 0.1.0
 enabled: false
 description: "Collect media candidates and provenance metadata."
-entrypoint: "media-collection:run"
+entrypoint: "gni.agents.media_collection:run"
 capabilities: []
 skills: []
 permissions:
