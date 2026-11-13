@@ -1,0 +1,12 @@
+id: source-discovery
+name: Source Discovery Agent
+version: 0.1.0
+enabled: false
+description: "Discover, evaluate and tier candidate sources."
+entrypoint: "source-discovery:run"
+capabilities: []
+skills: []
+permissions:
+  - sources.candidates.write
+  - sources.read
+contract_version: "1.0"
