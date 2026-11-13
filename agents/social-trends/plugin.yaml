@@ -1,0 +1,12 @@
+id: social-trends
+name: Social Trends Intelligence Agent
+version: 0.1.0
+enabled: false
+description: "Detect and analyze regional and global social-media trends."
+entrypoint: "social-trends:run"
+capabilities: []
+skills: []
+permissions:
+  - social_sources.read
+  - trends.write
+contract_version: "1.0"
