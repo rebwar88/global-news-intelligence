@@ -5,7 +5,7 @@ import pytest
 from gni.contracts import AgentResult, AgentStatus, Job, JobStatus
 from gni.queue import InMemoryJobQueue
 from gni.registry import PluginManifest, PluginRegistry
-from gni.runtime import AgentDispatcher
+from gni.runtime import AgentDispatcher, DispatchError
 
 
 def test_job_state_machine_and_retry_limit():
@@ -46,7 +46,7 @@ class ExampleAgent:
         return AgentResult(status=AgentStatus.SUCCEEDED, output={"processed": payload["value"]})
 
 
-def test_dispatcher_runs_only_injected_agent_with_permission_grants():
+def build_registry():
     registry = PluginRegistry()
     registry.register(
         PluginManifest.from_mapping({
@@ -58,9 +58,14 @@ def test_dispatcher_runs_only_injected_agent_with_permission_grants():
             "permissions": ["sample.read"],
         })
     )
+    return registry
+
+
+def test_dispatcher_runs_only_activated_injected_agent_with_permission_grants():
     dispatcher = AgentDispatcher(
-        registry=registry,
+        registry=build_registry(),
         agents={"sample-agent": ExampleAgent()},
+        active_plugins=frozenset({"sample-agent"}),
         granted_permissions={"sample-agent": frozenset({"sample.read"})},
     )
     final_job, output = dispatcher.execute(
@@ -70,21 +75,22 @@ def test_dispatcher_runs_only_injected_agent_with_permission_grants():
     assert output == {"processed": "ok"}
 
 
-def test_dispatcher_rejects_missing_permissions():
-    registry = PluginRegistry()
-    registry.register(
-        PluginManifest.from_mapping({
-            "id": "sample-agent",
-            "name": "Sample",
-            "version": "1.0.0",
-            "enabled": False,
-            "entrypoint": "sample:run",
-            "permissions": ["sample.read"],
-        })
-    )
+def test_dispatcher_rejects_inactive_plugin():
     dispatcher = AgentDispatcher(
-        registry=registry,
+        registry=build_registry(),
         agents={"sample-agent": ExampleAgent()},
+        active_plugins=frozenset(),
+        granted_permissions={"sample-agent": frozenset({"sample.read"})},
     )
-    with pytest.raises(Exception):
+    with pytest.raises(DispatchError):
+        dispatcher.execute(Job(agent_id="sample-agent", payload={"value": "ok"}))
+
+
+def test_dispatcher_rejects_missing_permissions():
+    dispatcher = AgentDispatcher(
+        registry=build_registry(),
+        agents={"sample-agent": ExampleAgent()},
+        active_plugins=frozenset({"sample-agent"}),
+    )
+    with pytest.raises(DispatchError):
         dispatcher.execute(Job(agent_id="sample-agent", payload={"value": "ok"}))
