@@ -1,0 +1,12 @@
+id: delivery-sync
+name: Delivery & Sync Agent
+version: 0.1.0
+enabled: false
+description: "Deliver validated records to PayamNewsAggregator idempotently."
+entrypoint: "delivery-sync:run"
+capabilities: []
+skills: []
+permissions:
+  - delivery.read
+  - payam_api.write
+contract_version: "1.0"
