@@ -3,7 +3,7 @@ name: Media Verification Agent
 version: 0.1.0
 enabled: false
 description: "Assess media context, provenance, manipulation clues and rights."
-entrypoint: "media-verification:run"
+entrypoint: "gni.agents.media_verification:run"
 capabilities: []
 skills: []
 permissions:
