@@ -3,7 +3,7 @@ name: Story Intelligence Agent
 version: 0.1.0
 enabled: false
 description: "Deduplicate, cluster and track canonical stories."
-entrypoint: "story-intelligence:run"
+entrypoint: "gni.agents.story_intelligence:run"
 capabilities: []
 skills: []
 permissions:
