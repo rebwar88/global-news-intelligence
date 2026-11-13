@@ -1,0 +1,13 @@
+id: fact-checking
+name: Fact-Checking Agent
+version: 0.1.0
+enabled: false
+description: "Evaluate claims against evidence and retain citations."
+entrypoint: "fact-checking:run"
+capabilities: []
+skills: []
+permissions:
+  - stories.read
+  - evidence.read
+  - fact_checks.write
+contract_version: "1.0"
