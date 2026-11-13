@@ -1,0 +1,16 @@
+id: main-orchestrator
+name: Main Orchestrator
+version: 0.1.0
+enabled: false
+description: Coordinates scheduling, job routing, agent lifecycle and workflow execution.
+entrypoint: main_orchestrator:run
+capabilities:
+  - job_dispatch
+  - workflow_coordination
+  - agent_lifecycle
+permissions:
+  - jobs.read
+  - jobs.dispatch
+  - agents.read
+  - workflows.read
+contract_version: "1.0"
