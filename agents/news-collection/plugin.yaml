@@ -1,0 +1,12 @@
+id: news-collection
+name: News Collection Agent
+version: 0.1.0
+enabled: false
+description: "Collect permitted news sources and normalize incoming items."
+entrypoint: "news-collection:run"
+capabilities: []
+skills: []
+permissions:
+  - sources.read
+  - articles.create
+contract_version: "1.0"
