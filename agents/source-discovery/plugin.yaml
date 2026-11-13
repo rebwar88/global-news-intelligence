@@ -3,7 +3,7 @@ name: Source Discovery Agent
 version: 0.1.0
 enabled: false
 description: "Discover, evaluate and tier candidate sources."
-entrypoint: "source-discovery:run"
+entrypoint: "gni.agents.source_discovery:run"
 capabilities: []
 skills: []
 permissions:
