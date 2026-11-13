@@ -3,7 +3,7 @@ name: Editorial & Translation Agent
 version: 0.1.0
 enabled: false
 description: "Detect languages, summarize, translate and rewrite with source fidelity."
-entrypoint: "editorial-translation:run"
+entrypoint: "gni.agents.editorial_translation:run"
 capabilities: []
 skills: []
 permissions:
