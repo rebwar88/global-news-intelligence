@@ -53,7 +53,7 @@ class AgentDispatcher:
             if not isinstance(result.output, dict):
                 raise TypeError("Agent output must be a mapping.")
             json.dumps(result.output, allow_nan=False)
-        except Exception:
+        except Exception:  # noqa: BLE001 - isolate arbitrary plugin failures at the runtime boundary.
             failed = running.retry()
             return failed, {
                 "error_code": "agent_execution_error",
