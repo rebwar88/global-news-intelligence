@@ -1,8 +1,8 @@
 """Validated plugin metadata models."""
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 
 _PLUGIN_ID = re.compile(r"^[a-z][a-z0-9-]{1,62}$")
 _VERSION = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$")
@@ -26,7 +26,7 @@ class PluginManifest:
     contract_version: str
 
     @classmethod
-    def from_mapping(cls, data: object) -> "PluginManifest":
+    def from_mapping(cls, data: object) -> PluginManifest:
         if not isinstance(data, dict):
             raise PluginValidationError("Manifest root must be a mapping.")
 
