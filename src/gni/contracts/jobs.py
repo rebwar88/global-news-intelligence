@@ -58,16 +58,16 @@ class Job:
         self._require_running()
         return replace(self, status=JobStatus.SUCCEEDED)
 
-    def retry(self) -> "Job":
+    def retry(self) -> Job:
         self._require_running()
         next_status = JobStatus.RETRYABLE if self.attempt < self.max_attempts else JobStatus.FAILED
         return replace(self, status=next_status)
 
-    def fail(self) -> "Job":
+    def fail(self) -> Job:
         self._require_running()
         return replace(self, status=JobStatus.FAILED)
 
-    def cancel(self) -> "Job":
+    def cancel(self) -> Job:
         if self.status in _TERMINAL:
             raise ValueError(f"Cannot cancel terminal job in {self.status}.")
         return replace(self, status=JobStatus.CANCELLED)
