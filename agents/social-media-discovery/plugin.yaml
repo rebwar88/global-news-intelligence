@@ -3,7 +3,7 @@ name: Social Media Discovery Agent
 version: 0.1.0
 enabled: false
 description: "Find relevant public social posts and eyewitness material."
-entrypoint: "social-media-discovery:run"
+entrypoint: "gni.agents.social_media_discovery:run"
 capabilities: []
 skills: []
 permissions:
