@@ -3,7 +3,7 @@ name: Delivery & Sync Agent
 version: 0.1.0
 enabled: false
 description: "Deliver validated records to PayamNewsAggregator idempotently."
-entrypoint: "delivery-sync:run"
+entrypoint: "gni.agents.delivery_sync:run"
 capabilities: []
 skills: []
 permissions:
