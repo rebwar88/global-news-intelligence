@@ -1,4 +1,4 @@
-def test_project_scaffold_is_importable():
-    import platform
+def test_project_package_is_importable():
+    import gni
 
-    assert platform.__name__ == "platform"
+    assert gni.__doc__ == "Global News Intelligence platform package."
