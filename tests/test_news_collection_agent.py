@@ -69,6 +69,10 @@ def test_feed_parser_rejects_dtd_and_oversized_document():
     with pytest.raises(ValueError):
         parse_feed(b'<!DOCTYPE rss [<!ENTITY x "boom">]><rss/>')
     with pytest.raises(ValueError):
+        parse_feed(b" " * 5000 + b'<!DOCTYPE rss><rss/>')
+    with pytest.raises(ValueError):
+        parse_feed(b"<rss/>", max_items=0)
+    with pytest.raises(ValueError):
         parse_feed(b"x" * 2_000_001)
 
 
@@ -243,3 +247,19 @@ def test_news_collection_agent_executes_through_trusted_dispatcher():
     )
     assert final_job.status == JobStatus.SUCCEEDED
     assert output["articles"][0]["title"] == "Dispatched headline"
+
+def test_agent_discards_invalid_or_overlong_article_urls():
+    agent = NewsCollectionAgent(
+        "news-collection",
+        {"sample-news": source()},
+        FakeReader(items=(
+            FeedItem("Missing host", "https://", external_id="bad-1"),
+            FeedItem("Credentials in URL", "https://user:pass@news.example.org/1", external_id="bad-2"),
+            FeedItem("Valid", "https://news.example.org/2", external_id="good-1"),
+        )),
+    )
+    result = agent.run(
+        context("sources.read", "articles.create"), {"source_ids": ["sample-news"]}
+    )
+    assert result.status == AgentStatus.SUCCEEDED
+    assert [item["title"] for item in result.output["articles"]] == ["Valid"]
