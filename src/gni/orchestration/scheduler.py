@@ -3,6 +3,10 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, datetime
+from collections import Counter
+from time import perf_counter
+
+from gni.observability.telemetry import RuntimeTelemetry
 
 from gni.contracts.jobs import JobStatus
 from gni.orchestration.planner import Orchestrator, WorkflowPlan
@@ -35,11 +39,13 @@ class WorkflowScheduler:
         submission: JobSubmissionService,
         workflow_repository: WorkflowRepository,
         job_repository: JobRepository,
+        telemetry: RuntimeTelemetry | None = None,
     ) -> None:
         self._orchestrator = orchestrator
         self._submission = submission
         self._workflow_repository = workflow_repository
         self._job_repository = job_repository
+        self._telemetry = telemetry
 
     def start(self, workflow: WorkflowPlan) -> WorkflowRun:
         plan = self._orchestrator.plan(workflow)
@@ -61,12 +67,23 @@ class WorkflowScheduler:
         return self.advance(plan.workflow_id)
 
     def advance(self, workflow_id: str) -> WorkflowRun:
+        started = perf_counter()
+        def record(run: WorkflowRun, action: str) -> WorkflowRun:
+            if self._telemetry is not None:
+                self._telemetry.record_workflow(
+                    action=action, status=run.status.value,
+                    duration_seconds=max(0.0, perf_counter() - started),
+                )
+                counts = Counter(state.status.value for state in run.steps)
+                self._telemetry.record_workflow_steps(counts=dict(counts))
+            return run
+
         for _ in range(5):
             run = self._workflow_repository.get(workflow_id)
             if run is None:
                 raise KeyError(f"Unknown workflow: {workflow_id}")
             if run.status != WorkflowStatus.RUNNING:
-                return run
+                return record(run, "advance_terminal")
 
             states = {state.step_id: state for state in run.steps}
             changed = False
@@ -121,7 +138,7 @@ class WorkflowScheduler:
             if next_status != run.status:
                 changed = True
             if not changed:
-                return run
+                return record(run, "advance_noop")
 
             updated = replace(
                 run,
@@ -131,7 +148,7 @@ class WorkflowScheduler:
                 updated_at=datetime.now(UTC),
             )
             if self._workflow_repository.save(updated, expected_version=run.version):
-                return updated
+                return record(updated, "advance_updated")
 
         raise WorkflowConcurrencyError(
             f"Workflow {workflow_id} changed repeatedly while the scheduler advanced it."
