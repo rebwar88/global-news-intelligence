@@ -107,7 +107,7 @@ def parse_feed(document: bytes, *, max_items: int = 100) -> tuple[FeedItem, ...]
         raise ValueError("max_items must be positive.")
     if len(document) > 2_000_000:
         raise ValueError("Feed document exceeds the configured size limit.")
-    upper = document[:4096].upper()
+    upper = document.upper()
     if b"<!DOCTYPE" in upper or b"<!ENTITY" in upper:
         raise ValueError("Feed document contains a forbidden document declaration.")
     try:
