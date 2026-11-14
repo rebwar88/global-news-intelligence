@@ -11,7 +11,7 @@ from email.utils import parsedate_to_datetime
 from html import unescape
 from html.parser import HTMLParser
 from typing import Protocol
-from urllib import error, request
+from urllib import error, request as urllib_request
 from urllib.parse import urlsplit
 
 
@@ -61,7 +61,7 @@ class FeedReader(Protocol):
         ...
 
 
-class _NoRedirect(request.HTTPRedirectHandler):
+class _NoRedirect(urllib_request.HTTPRedirectHandler):
     def redirect_request(self, request, file_pointer, code, message, headers, new_url):
         return None
 
@@ -175,8 +175,8 @@ class RSSFeedClient:
         self._timeout = timeout_seconds
         self._max_bytes = max_bytes
         self._max_items = max_items
-        self._opener = request.build_opener(
-            request.HTTPSHandler(context=ssl.create_default_context()),
+        self._opener = urllib_request.build_opener(
+            urllib_request.HTTPSHandler(context=ssl.create_default_context()),
             _NoRedirect(),
         )
 
@@ -187,12 +187,12 @@ class RSSFeedClient:
         }:
             raise ValueError("Feed host is not in the source allowlist.")
         _assert_public_host(parsed.hostname)
-        request = request.Request(
+        http_request = urllib_request.Request(
             source.feed_url,
             headers={"User-Agent": "GlobalNewsIntelligence/0.1 (+RSS reader)", "Accept": "application/atom+xml, application/rss+xml, application/xml, text/xml"},
         )
         try:
-            with self._opener.open(request, timeout=self._timeout) as response:
+            with self._opener.open(http_request, timeout=self._timeout) as response:
                 if response.status != 200:
                     raise ValueError("Feed server returned an unsuccessful status.")
                 final = urlsplit(response.geturl())
