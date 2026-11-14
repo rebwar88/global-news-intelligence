@@ -80,22 +80,32 @@ class MetricsRegistry:
             self._check_series(family, key)
             family.samples[key] = float(value)
 
+    def adjust_gauge(
+        self, name: str, delta: float, *, labels: dict[str, str] | None = None,
+        help_text: str = "",
+    ) -> None:
+        key = self._labels(labels)
+        with self._lock:
+            family = self._family(name, "gauge", help_text)
+            self._check_series(family, key)
+            family.samples[key] = family.samples.get(key, 0.0) + delta
+
     def observe(
         self, name: str, value: float, *, labels: dict[str, str] | None = None,
-        buckets: tuple[float, ...] = _DEFAULT_BUCKETS, help_text: str = "",
+        help_text: str = "",
     ) -> None:
         if value < 0:
             raise ValueError("Histogram observations cannot be negative.")
-        if tuple(sorted(set(buckets))) != buckets or any(x <= 0 for x in buckets):
-            raise ValueError("Histogram buckets must be unique, positive and sorted.")
         key = self._labels(labels)
         with self._lock:
             family = self._family(name, "histogram", help_text)
             self._check_series(family, key)
-            values = family.histograms.setdefault(key, [0.0, 0.0, *([0.0] * len(buckets))])
+            values = family.histograms.setdefault(
+                key, [0.0, 0.0, *([0.0] * len(_DEFAULT_BUCKETS))]
+            )
             values[0] += 1
             values[1] += value
-            for index, boundary in enumerate(buckets, start=2):
+            for index, boundary in enumerate(_DEFAULT_BUCKETS, start=2):
                 if value <= boundary:
                     values[index] += 1
 
