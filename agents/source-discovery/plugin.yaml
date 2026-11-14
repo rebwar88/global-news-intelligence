@@ -8,5 +8,5 @@ capabilities: []
 skills: []
 permissions:
   - sources.candidates.write
-  - sources.read
+  - sources.discover
 contract_version: "1.0"
