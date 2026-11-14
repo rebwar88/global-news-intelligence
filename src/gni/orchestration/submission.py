@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from gni.contracts.jobs import Job, JobStatus
 from gni.persistence.base import JobRecord, JobRepository
+from gni.persistence.outbox import SubmissionRepository
 from gni.queue.base import JobQueue
 from gni.registry.registry import PluginNotFoundError, PluginRegistry
 
@@ -40,11 +41,13 @@ class JobSubmissionService:
         active_plugins: frozenset[str] | set[str],
         repository: JobRepository,
         queue: JobQueue,
+        outbox_repository: SubmissionRepository | None = None,
     ) -> None:
         self._registry = registry
         self._active_plugins = frozenset(active_plugins)
         self._repository = repository
         self._queue = queue
+        self._outbox_repository = outbox_repository
 
     def submit(
         self,
@@ -74,15 +77,25 @@ class JobSubmissionService:
                 max_attempts=max_attempts,
             )
             record = JobRecord(job)
-            created = self._repository.create(record, idempotency_key=idempotency_key)
+            if self._outbox_repository is not None:
+                existing, created = self._outbox_repository.create_job_with_outbox(
+                    record, idempotency_key=idempotency_key
+                )
+            else:
+                created = self._repository.create(record, idempotency_key=idempotency_key)
+                existing = record if created else self._repository.get_by_idempotency_key(
+                    idempotency_key
+                )
             if not created:
                 existing = self._repository.get_by_idempotency_key(idempotency_key)
                 if existing is None:
                     raise JobSubmissionError(
                         "Idempotency conflict occurred but the existing job was not found."
                     )
-            else:
-                existing = record
+            elif existing is None:
+                raise JobSubmissionError(
+                    "Idempotency conflict occurred but the existing job was not found."
+                )
 
         assert existing is not None
         job = existing.job
@@ -92,6 +105,10 @@ class JobSubmissionService:
             )
         if job.status not in {JobStatus.QUEUED, JobStatus.RETRYABLE}:
             return SubmissionResult(job=job, created=False, queued=False)
+
+        if self._outbox_repository is not None:
+            # Job state and queue-publication intent were committed atomically.
+            return SubmissionResult(job=job, created=created, queued=True)
 
         try:
             self._queue.enqueue(job, idempotency_key=idempotency_key)
