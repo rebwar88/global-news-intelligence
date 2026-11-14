@@ -33,3 +33,15 @@ Import `grafana/global-news-intelligence-dashboard.json` and select the Promethe
 - Queue, workflow and outbox metrics are opt-in: inject a shared `RuntimeTelemetry` into `WorkflowScheduler`, `WorkflowRecoveryService`, `OutboxPublisher` and `PostgresJobQueue`.\n- Queue metrics are emitted by the PostgreSQL adapter; the in-memory adapter remains a test/local-development adapter and does not emit queue operation metrics.
 - Metrics are not a substitute for durable job/workflow records or audit logs.
 - The metrics endpoint has no built-in authentication.
+
+
+## Durable backlog and lease health
+
+Compose `PostgresRuntimeHealthCollector(pool, telemetry)` and invoke
+`collect()` periodically (recommended starting interval: 30–60 seconds).
+It publishes durable database snapshots for pending queue/outbox work, active
+reservations, expired leases, oldest pending age, running workflows and open
+dead letters. Give the collector a read-only database role for these tables.
+Do not interpret missing gauge series as zero: verify the collector is running
+and being scraped. Thresholds in the alert rules are starting defaults and
+must be tuned after observing real traffic.
