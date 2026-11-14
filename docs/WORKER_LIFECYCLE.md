@@ -48,7 +48,7 @@ from psycopg_pool import ConnectionPool
 
 from gni.persistence.postgres import PostgresPersistence
 from gni.persistence.audit_postgres import PostgresAuditSink
-from gni.observability import MetricsRegistry, ProtectedMetricsApp, RuntimeTelemetry
+from gni.observability import MetricsHttpServer, MetricsRegistry, RuntimeTelemetry
 from gni.queue.postgres import PostgresJobQueue
 from gni.runtime import (
     AgentDispatcher, IsolationLimits, JobWorker,
@@ -97,25 +97,29 @@ use a hardened container/VM sandbox with a non-root identity, read-only filesyst
 restricted network egress, no host secrets and explicit syscall/resource policy.
 
 
-Create the protected WSGI application from the *same* registry used by the worker:
+Start the optional Waitress listener from the *same process* and pass the same
+registry used by the worker:
 
 ```python
 import os
-from gni.observability import ProtectedMetricsApp
+from gni.observability import MetricsHttpServer
 
-metrics_app = ProtectedMetricsApp(
+metrics_server = MetricsHttpServer(
     metrics,
     bearer_token=os.environ["GNI_METRICS_BEARER_TOKEN"],
+    host="127.0.0.1",
+    port=9108,
 )
+metrics_server.start()
 ```
 
-Mount `metrics_app` at the private `/metrics` route in the WSGI host running
-in the same process as the worker. The token must be a long random secret,
-provided through the process secret manager (never committed to Git). Bind the
-host to a private interface/firewall segment and allow Prometheus only. The
-repository currently supplies the protected WSGI application, not a standalone
-HTTP server or an application-specific router; the final mount point depends on
-the production WSGI host selected for deployment.
+Install it with `pip install -e ".[postgres,monitoring]"`. The default bind is
+loopback; if Prometheus runs on another host, use the worker's private interface
+address instead and restrict inbound port 9108 to the Prometheus host using a
+firewall/security group. Never bind to `0.0.0.0` or expose the endpoint publicly.
+The Bearer token must be a long random secret supplied through the process secret
+manager (never committed to Git). During shutdown call `metrics_server.close()`
+before closing the worker process.
 
 
 ## Runtime health monitor
