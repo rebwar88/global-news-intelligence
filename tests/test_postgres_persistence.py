@@ -16,7 +16,9 @@ from gni.orchestration.planner import ExecutionPlan, WorkflowStep
 from gni.persistence.base import JobRecord
 from gni.persistence.postgres import PostgresPersistence, PostgresWorkflowRepository
 from gni.persistence.workflows import (
-    WorkflowRun, WorkflowStepState, WorkflowStepStatus,
+    WorkflowRun,
+    WorkflowStepState,
+    WorkflowStepStatus,
 )
 
 
