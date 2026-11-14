@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
+from gni.contracts.agent import AgentContext, AgentResult, AgentStatus
 from gni.connectors.rss import FeedReader, FeedSource
 
 
@@ -25,9 +26,7 @@ class NewsCollectionAgent:
         if any(key != source.source_id for key, source in self.sources.items()):
             raise ValueError("Source mapping keys must match configured source IDs.")
 
-    def run(self, context, payload: dict[str, Any]):
-        from gni.contracts.agent import AgentResult, AgentStatus
-
+    def run(self, context: AgentContext, payload: dict[str, Any]) -> AgentResult:
         if "sources.read" not in context.permissions or "articles.create" not in context.permissions:
             return AgentResult(
                 status=AgentStatus.FAILED,
