@@ -195,7 +195,7 @@ class RSSFeedClient:
         )
 
     def fetch(self, source: FeedSource) -> tuple[FeedItem, ...]:
-        parsed = urllib.parse.urlsplit(source.feed_url)
+        parsed = urlsplit(source.feed_url)
         if parsed.hostname is None or parsed.hostname.lower() not in {
             host.lower() for host in source.allowed_hosts
         }:
@@ -209,7 +209,7 @@ class RSSFeedClient:
             with self._opener.open(http_request, timeout=self._timeout) as response:
                 if response.status != 200:
                     raise ValueError("Feed server returned an unsuccessful status.")
-                final = urllib.parse.urlsplit(response.geturl())
+                final = urlsplit(response.geturl())
                 if final.scheme != "https" or final.hostname != parsed.hostname:
                     raise ValueError("Feed response URL changed unexpectedly.")
                 document = response.read(self._max_bytes + 1)
