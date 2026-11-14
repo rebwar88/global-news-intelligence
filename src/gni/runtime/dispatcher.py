@@ -5,7 +5,7 @@ import json
 
 from gni.contracts.agent import Agent, AgentContext, AgentStatus
 from gni.contracts.jobs import Job, JobStatus
-from gni.registry.registry import PluginRegistry
+from gni.registry.registry import PluginNotFoundError, PluginRegistry
 
 
 class DispatchError(RuntimeError):
@@ -34,7 +34,10 @@ class AgentDispatcher:
         """Execute a job whose RUNNING transition has already been persisted."""
         if running.status != JobStatus.RUNNING:
             raise DispatchError("Dispatcher requires a persisted RUNNING job.")
-        manifest = self._registry.get(running.agent_id)
+        try:
+            manifest = self._registry.get(running.agent_id)
+        except PluginNotFoundError as exc:
+            raise DispatchError("Agent manifest is not registered.") from exc
         if running.agent_id not in self._active_plugins:
             raise DispatchError(f"Plugin is not explicitly activated: {running.agent_id}.")
         agent = self._agents.get(running.agent_id)
