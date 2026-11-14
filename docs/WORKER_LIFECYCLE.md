@@ -2,25 +2,28 @@
 
 ## Implemented
 
-- `JobWorker.process_one()` reserves at most one queue item; an external supervisor owns polling, process lifetime and graceful shutdown.
+- `JobWorker.process_one()` reserves at most one queue item. `WorkerSupervisor` owns polling, idle backoff and cooperative graceful shutdown between jobs.
 - The repository is authoritative. A queue item without a matching record is discarded without executing code.
 - The worker persists RUNNING with an incremented attempt before calling the dispatcher.
 - A recovered RUNNING record is treated as an interrupted attempt and moved to RETRYABLE or FAILED using a compare-and-set update.
 - The final result is persisted before queue acknowledgement. Redelivery of an already terminal job is acknowledged without executing the agent again.
 - Retryable results are released back to the queue with the configured delay. The in-memory queue supports immediate release only.
 - Dispatch policy failures become terminal, sanitized job errors rather than endless retries.
+- Permanently failed jobs are moved to a dead-letter store; terminal redelivery retries this move instead of silently discarding the failure.
+- `WorkflowRecoveryService` scans active durable workflow runs and re-invokes the idempotent scheduler after a restart.
+- `ProcessIsolatedAgentRunner` can execute an agent call in a killable child process with wall-clock, address-space, CPU and file-descriptor limits on POSIX.
 
 ## Reliability boundaries
 
 This is an at-least-once processing design, not exactly-once execution. External side effects performed by an agent can repeat if a worker crashes after the side effect but before the final result is committed. Agents must use the job ID as an idempotency key for external writes, and integrations should support deduplication.
 
-Production queue adapters must implement durable reservations, visibility expiry, delayed delivery, dead-letter handling and fencing/lease semantics so an expired worker cannot overwrite a newer attempt. Visibility timeout must exceed the enforced maximum agent runtime, or the worker must renew its lease. The current synchronous dispatcher does not enforce CPU, memory or wall-clock limits; do not run untrusted plugin code in this process.
+Production queue adapters must implement durable reservations, visibility expiry, delayed delivery, dead-letter handling and fencing/lease semantics. The PostgreSQL queue implements these contracts, including a durable dead-letter table. Configure visibility timeout above the maximum agent runtime; lease renewal is not yet implemented. The default dispatcher remains in-process. The optional process runner limits resource consumption, but it is not a hardened security sandbox: it does not isolate filesystem/network access or credentials. Do not execute untrusted plugin code; use a container/OS sandbox with restricted identity and network policy for that.
 
 The repository's compare-and-set update must be atomic across workers. The worker intentionally does not acknowledge when state persistence conflicts. Monitoring should alert on repeated conflicts and exhausted attempts.
 
 ## Not implemented
 
-No background polling daemon, distributed lease renewal, cancellation signal handling, process sandbox, durable queue/database adapter, dead-letter store, metrics exporter or audit-event sink is included yet. The in-memory queue and repository are for tests/local development only.
+No service manager, distributed lease renewal, in-flight cancellation, hardened OS sandbox, metrics exporter or audit-event sink is included yet. A process supervisor such as systemd/container orchestration should manage the long-running supervisor process. The in-memory queue and repository are for tests/local development only.
 
 
 ## Workflow scheduling boundary
