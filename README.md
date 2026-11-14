@@ -34,4 +34,15 @@ Architecture and foundation phase. No production agents are enabled yet.
 
 ## Development status
 
-This repository currently contains the initial architecture scaffold. Implementation decisions and integrations will be documented before production activation.
+The repository now includes plugin registries, agent/job contracts, workflow planning and recovery, transactional outbox, PostgreSQL persistence and durable queue adapters, worker supervision, process resource limits, dead-letter handling, Prometheus metrics and PostgreSQL audit logging. PostgreSQL 16 integration tests and lint run in GitHub Actions.
+
+This is still a foundation, not a production deployment. No production database, Prometheus server, Grafana dashboards, alert manager, hardened untrusted-code sandbox or model-provider cost collector has been deployed. Production activation requires infrastructure selection, migrations, secrets, access controls, backups, retention policy, load testing and operational runbooks.
+
+## Operational documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Execution runtime](docs/EXECUTION_RUNTIME.md)
+- [Worker lifecycle and isolation](docs/WORKER_LIFECYCLE.md)
+- [PostgreSQL schema and operations](docs/POSTGRESQL_SCHEMA.md)
+- [Observability, metrics and audit](docs/OBSERVABILITY.md)
+- [Security baseline](docs/SECURITY.md)
