@@ -31,6 +31,11 @@ class InMemoryJobRepository:
         with self._lock:
             return self._records.get(job_id)
 
+    def get_by_idempotency_key(self, idempotency_key: str) -> JobRecord | None:
+        with self._lock:
+            job_id = self._idempotency.get(idempotency_key)
+            return self._records.get(job_id) if job_id is not None else None
+
     def save(self, record: JobRecord, *, expected_status: JobStatus) -> bool:
         with self._lock:
             current = self._records.get(record.job.id)
