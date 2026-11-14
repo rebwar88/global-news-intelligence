@@ -22,6 +22,8 @@ class NewsCollectionAgent:
             raise ValueError("NewsCollectionAgent must use the news-collection ID.")
         if self.max_sources_per_job < 1 or self.max_items_per_source < 1:
             raise ValueError("Collection limits must be positive.")
+        if any(key != source.source_id for key, source in self.sources.items()):
+            raise ValueError("Source mapping keys must match configured source IDs.")
 
     def run(self, context, payload: dict[str, Any]):
         from gni.contracts.agent import AgentResult, AgentStatus
