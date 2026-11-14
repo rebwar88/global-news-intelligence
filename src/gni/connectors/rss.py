@@ -4,9 +4,6 @@ from __future__ import annotations
 import ipaddress
 import socket
 import ssl
-from urllib import error
-from urllib import request as urllib_request
-from urllib.parse import urlsplit
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -14,6 +11,9 @@ from email.utils import parsedate_to_datetime
 from html import unescape
 from html.parser import HTMLParser
 from typing import Protocol
+from urllib import error
+from urllib import request as urllib_request
+from urllib.parse import urlsplit
 
 
 _ATOM = "{http://www.w3.org/2005/Atom}"
@@ -47,7 +47,7 @@ class FeedSource:
             raise ValueError("source_id must be a non-empty identifier.")
         if not self.name.strip():
             raise ValueError("Source name is required.")
-        parsed = urllib.parse.urlsplit(self.feed_url)
+        parsed = urlsplit(self.feed_url)
         if (
             not is_https_url(self.feed_url)
             or not parsed.hostname
