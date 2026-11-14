@@ -185,7 +185,7 @@ class RuntimeTelemetry:
                 "gni_metrics_write_failures_total",
                 help_text="Metric recording failures, usually caused by cardinality limits.",
             )
-        except Exception:  # noqa: BLE001, S110 - metrics failure must not break runtime.
+        except Exception:  # noqa: BLE001 - metrics failure must not break runtime.
             return
 
     def _record_audit(self, event: AuditEvent) -> None:
