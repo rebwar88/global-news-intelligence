@@ -47,7 +47,7 @@ class FeedSource:
             raise ValueError("source_id must be a non-empty identifier.")
         if not self.name.strip():
             raise ValueError("Source name is required.")
-        parsed = urlsplit(self.feed_url)
+        parsed = urllib.parse.urlsplit(self.feed_url)
         if (
             not is_https_url(self.feed_url)
             or not parsed.hostname
@@ -73,7 +73,7 @@ class FeedReader(Protocol):
         ...
 
 
-class _NoRedirect(urllib_urllib.request.HTTPRedirectHandler):
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, file_pointer, code, message, headers, new_url):
         return None
 
@@ -209,7 +209,7 @@ class RSSFeedClient:
             with self._opener.open(http_request, timeout=self._timeout) as response:
                 if response.status != 200:
                     raise ValueError("Feed server returned an unsuccessful status.")
-                final = urlsplit(response.geturl())
+                final = urllib.parse.urlsplit(response.geturl())
                 if final.scheme != "https" or final.hostname != parsed.hostname:
                     raise ValueError("Feed response URL changed unexpectedly.")
                 document = response.read(self._max_bytes + 1)
