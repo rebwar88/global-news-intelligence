@@ -10,7 +10,7 @@ The Source Discovery Agent evaluates candidate publisher metadata supplied by a 
 
 The deterministic score uses only supplied, inspectable facts: verified publisher identity, transparent ownership, editorial and corrections policies, contact information, original reporting, and independent reporting. A known copying network reduces the score and is explicitly flagged. Evidence URLs are retained only when they are public HTTPS URLs.
 
-A high score is not proof of accuracy, impartiality, or trustworthiness. Popularity, reach, and social engagement are not scoring inputs. No candidate is automatically approved. Human reviewers must inspect evidence and record an approval reference before a source can enter tier A or the News Collection Agent's allowlist.
+A high score is not proof of accuracy, impartiality, or trustworthiness. Popularity, reach, and social engagement are not scoring inputs. Candidate-provider metadata cannot self-approve a source: tier A requires a matching approval reference supplied separately through the agent's trusted approval registry/configuration. Human reviewers must inspect evidence and record that approval before a source can enter tier A or the News Collection Agent's allowlist.
 
 ## Execution and safety
 
