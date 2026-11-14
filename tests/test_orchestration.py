@@ -14,8 +14,8 @@ from gni.orchestration import (
 )
 from gni.persistence import InMemoryJobRepository, InMemoryOutboxRepository
 from gni.queue import InMemoryJobQueue
-from gni.runtime import OutboxPublisher
 from gni.registry import PluginManifest, PluginRegistry
+from gni.runtime import OutboxPublisher
 
 
 def make_registry(*agent_ids: str) -> PluginRegistry:
