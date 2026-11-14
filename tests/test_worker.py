@@ -98,3 +98,14 @@ def test_job_recovery_moves_interrupted_run_to_retryable_or_failed():
     assert running.recover().status == JobStatus.RETRYABLE
     exhausted = running.start().recover()
     assert exhausted.status == JobStatus.FAILED
+
+
+def test_worker_marks_exhausted_interrupted_attempt_failed():
+    worker, queue, repository, job = make_worker(SuccessAgent(), max_attempts=1)
+    running = job.start()
+    assert repository.save(JobRecord(running), expected_status=JobStatus.QUEUED)
+    outcome = worker.process_one()
+    assert outcome.status == JobStatus.FAILED
+    assert outcome.action == "failed_after_interrupted_attempt"
+    assert repository.get(job.id).job.status == JobStatus.FAILED
+    assert queue.reserve(worker_id="next", visibility_timeout_seconds=30) is None
