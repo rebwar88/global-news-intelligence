@@ -21,3 +21,8 @@ The repository's compare-and-set update must be atomic across workers. The worke
 ## Not implemented
 
 No background polling daemon, distributed lease renewal, cancellation signal handling, process sandbox, durable queue/database adapter, dead-letter store, metrics exporter or audit-event sink is included yet. The in-memory queue and repository are for tests/local development only.
+
+
+## Workflow scheduling boundary
+
+The scheduler is invoked by an external supervisor or scheduled workflow. It is safe to call advance() repeatedly: job submission uses deterministic workflow-step idempotency keys, and workflow-run writes use version compare-and-set. The current in-memory repositories do not provide cross-process guarantees. Production must use durable workflow/job repositories and a durable idempotent queue. A stale workflow in RUNNING state should be scanned and advanced by the supervisor; no background daemon is included in this phase.
