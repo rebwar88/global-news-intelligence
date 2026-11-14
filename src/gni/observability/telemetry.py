@@ -127,6 +127,33 @@ class RuntimeTelemetry:
             help_text="Dead-letter creation and replay operations.",
         )
 
+    def record_runtime_health(self, *, queue_pending: int, queue_processing: int,
+                              queue_expired_leases: int, queue_oldest_pending_seconds: float,
+                              outbox_pending: int, outbox_processing: int,
+                              outbox_expired_leases: int, outbox_oldest_pending_seconds: float,
+                              workflows_running: int, dead_letters_open: int) -> None:
+        """Publish a bounded point-in-time snapshot from durable PostgreSQL state."""
+        gauges = {
+            "gni_queue_pending_messages": queue_pending,
+            "gni_queue_processing_messages": queue_processing,
+            "gni_queue_expired_leases": queue_expired_leases,
+            "gni_queue_oldest_pending_seconds": queue_oldest_pending_seconds,
+            "gni_outbox_pending_events": outbox_pending,
+            "gni_outbox_processing_events": outbox_processing,
+            "gni_outbox_expired_leases": outbox_expired_leases,
+            "gni_outbox_oldest_pending_seconds": outbox_oldest_pending_seconds,
+            "gni_workflows_running": workflows_running,
+            "gni_dead_letters_open": dead_letters_open,
+        }
+        for name, value in gauges.items():
+            try:
+                self.metrics.set_gauge(
+                    name, float(value),
+                    help_text=f"Latest durable PostgreSQL health snapshot: {name}.",
+                )
+            except Exception:  # noqa: BLE001
+                self._metric_failure()
+
     def _safe_increment(self, name: str, value: float = 1, *, labels=None, help_text: str = "") -> None:
         try:
             self.metrics.increment(name, value, labels=labels, help_text=help_text)
