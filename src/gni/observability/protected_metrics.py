@@ -25,8 +25,8 @@ class ProtectedMetricsApp:
         bearer_token: str,
         path: str = "/metrics",
     ) -> None:
-        if not bearer_token or bearer_token.strip() != bearer_token:
-            raise ValueError("A non-empty, trimmed metrics bearer token is required.")
+        if not bearer_token or any(character.isspace() for character in bearer_token):
+            raise ValueError("A non-empty metrics bearer token without whitespace is required.")
         self._token = bearer_token
         self._path = path
         self._app = PrometheusMetricsApp(registry, path=path)
