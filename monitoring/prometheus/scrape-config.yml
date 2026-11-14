@@ -1,0 +1,11 @@
+# Prometheus scrape configuration fragment.
+# Store the token outside the repository, readable only by the Prometheus user.
+scrape_configs:
+  - job_name: gni-runtime
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scheme: http
+    bearer_token_file: /etc/prometheus/secrets/gni-metrics-token
+    static_configs:
+      - targets:
+          - "gni-runtime.internal:9108"
