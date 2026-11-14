@@ -96,3 +96,29 @@ def test_audit_sink_failure_does_not_break_telemetry_or_job_processing():
         status="succeeded", action="completed", duration_seconds=0.1, attempt=1,
     )
     assert "gni_audit_write_failures_total 1" in telemetry.metrics.render()
+
+
+def test_runtime_telemetry_records_workflow_queue_outbox_and_dead_letters():
+    telemetry = RuntimeTelemetry()
+    telemetry.record_workflow(action="advance_updated", status="running", duration_seconds=0.2)
+    telemetry.record_workflow_steps(counts={"queued": 2, "pending": 1})
+    telemetry.record_workflow_recovery(scanned=3, advanced=3, completed=1, failed=0)
+    telemetry.record_outbox(action="published", duration_seconds=0.05)
+    telemetry.record_outbox(action="scheduled_retry", duration_seconds=0.1)
+    telemetry.record_queue_action(action="reserve", result="reserved")
+    telemetry.record_dead_letter(action="created", reason="permanent_failure")
+
+    rendered = telemetry.metrics.render()
+    for metric in (
+        "gni_workflow_runs_total",
+        "gni_workflow_steps_observed_total",
+        "gni_workflow_recovery_runs_total",
+        "gni_workflow_recovery_items_total",
+        "gni_outbox_events_total",
+        "gni_outbox_publish_duration_seconds",
+        "gni_queue_operations_total",
+        "gni_dead_letter_events_total",
+    ):
+        assert metric in rendered
+    assert 'gni_outbox_events_total{action="published"} 1' in rendered
+    assert 'gni_queue_operations_total{action="reserve",result="reserved"} 1' in rendered
