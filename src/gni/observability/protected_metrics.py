@@ -5,8 +5,8 @@ import hmac
 from collections.abc import Callable, Iterable
 from typing import Any
 
-from gni.observability.prometheus import PrometheusMetricsApp
 from gni.observability.metrics import MetricsRegistry
+from gni.observability.prometheus import PrometheusMetricsApp
 
 StartResponse = Callable[[str, list[tuple[str, str]]], Any]
 
