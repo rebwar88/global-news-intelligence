@@ -20,9 +20,9 @@ from gni.persistence.workflows import (
     WorkflowStepState,
     WorkflowStepStatus,
 )
-from gni.queue.postgres import PostgresJobQueue
 from gni.observability.audit import AuditEvent
 from gni.persistence.audit_postgres import PostgresAuditSink
+from gni.queue.postgres import PostgresJobQueue
 
 
 @pytest.fixture(scope="module")
