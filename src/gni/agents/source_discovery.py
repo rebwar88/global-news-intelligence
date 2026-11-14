@@ -1,5 +1,5 @@
 """Source Discovery Agent: assess candidate publishers without auto-approving them."""
-from __future__ import annotations
+from __future__ import annotations  # noqa: I001
 
 import ipaddress
 import re
