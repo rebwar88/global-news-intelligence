@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from time import perf_counter
+
+from gni.observability.telemetry import RuntimeTelemetry
 
 from gni.persistence.base import JobRepository
 from gni.persistence.outbox import OutboxRepository
@@ -22,6 +25,7 @@ class OutboxPublisher:
         self, *, outbox: OutboxRepository, jobs: JobRepository, queue: JobQueue,
         max_attempts: int = 8, lease_seconds: int = 60,
         base_retry_seconds: int = 5, max_retry_seconds: int = 900,
+        telemetry: RuntimeTelemetry | None = None,
     ) -> None:
         if min(max_attempts, lease_seconds, base_retry_seconds, max_retry_seconds) < 1:
             raise ValueError("Publisher timing and retry settings must be positive.")
@@ -32,6 +36,7 @@ class OutboxPublisher:
         self._lease_seconds = lease_seconds
         self._base_retry = base_retry_seconds
         self._max_retry = max_retry_seconds
+        self._telemetry = telemetry
 
     def publish_batch(
         self, *, limit: int = 50, now: datetime | None = None
@@ -42,6 +47,7 @@ class OutboxPublisher:
         )
         outcomes: list[OutboxPublishOutcome] = []
         for lease in leases:
+            event_started = perf_counter()
             event = lease.event
             record = self._jobs.get(event.aggregate_id)
             if record is None:
@@ -50,6 +56,7 @@ class OutboxPublisher:
                     error_code="job_record_missing",
                 )
                 outcomes.append(OutboxPublishOutcome(event.id, "dead_lettered_missing_job"))
+                self._record("dead_lettered_missing_job", event_started)
                 continue
             try:
                 self._queue.enqueue(
@@ -74,13 +81,24 @@ class OutboxPublisher:
                     )
                     action = "scheduled_retry"
                 outcomes.append(OutboxPublishOutcome(event.id, action))
+                self._record(action, event_started)
                 continue
 
             if self._outbox.mark_published(
                 event.id, lease_token=lease.lease_token
             ):
                 outcomes.append(OutboxPublishOutcome(event.id, "published"))
+                self._record("published", event_started)
             else:
                 # Queue enqueue is idempotent; a later lease can safely retry.
                 outcomes.append(OutboxPublishOutcome(event.id, "lease_lost_after_enqueue"))
+                self._record("lease_lost_after_enqueue", event_started)
         return tuple(outcomes)
+
+    def _record(self, action: str, started: float) -> None:
+        if self._telemetry is not None:
+            self._telemetry.record_outbox(
+                action=action, duration_seconds=max(0.0, perf_counter() - started)
+            )
+            if action.startswith("dead_lettered"):
+                self._telemetry.record_dead_letter(action="created", reason=action)
