@@ -143,8 +143,6 @@ def test_agent_isolates_source_failures_and_returns_partial_results():
 
 
 def test_agent_rejects_unbounded_or_duplicate_source_lists():
-    import pytest
-
     agent = NewsCollectionAgent("news-collection", {"sample-news": source()}, FakeReader())
     for source_ids in ([], ["sample-news", "sample-news"], ["x"] * 11, "sample-news"):
         result = agent.run(
