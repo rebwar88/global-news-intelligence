@@ -7,10 +7,11 @@ contracts: jobs, workflow runs and transactional outbox events. It does not sele
 database hosting vendor or a queue provider. PostgreSQL is the planned relational
 database; hosting, connection management and deployment remain separate decisions.
 
- Migrations: `migrations/postgresql/001_initial_persistence.sql`,
-`migrations/postgresql/002_job_queue.sql`, and
-`migrations/postgresql/003_dead_letter_messages.sql`, and
-`migrations/postgresql/004_audit_events.sql`.
+ Migrations:
+- `migrations/postgresql/001_initial_persistence.sql`
+- `migrations/postgresql/002_job_queue.sql`
+- `migrations/postgresql/003_dead_letter_messages.sql`
+- `migrations/postgresql/004_audit_events.sql`
 
 ## Tables
 
