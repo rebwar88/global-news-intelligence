@@ -7,8 +7,9 @@ contracts: jobs, workflow runs and transactional outbox events. It does not sele
 database hosting vendor or a queue provider. PostgreSQL is the planned relational
 database; hosting, connection management and deployment remain separate decisions.
 
- Migrations: `migrations/postgresql/001_initial_persistence.sql` and
-`migrations/postgresql/002_job_queue.sql`.
+ Migrations: `migrations/postgresql/001_initial_persistence.sql`,
+`migrations/postgresql/002_job_queue.sql`, and
+`migrations/postgresql/003_dead_letter_messages.sql`.
 
 ## Tables
 
@@ -20,6 +21,7 @@ database; hosting, connection management and deployment remain separate decision
   foreign key. It stores no duplicate job payload.
 - `queue_messages`: durable queue records linked to authoritative jobs, with delayed
   availability, visibility leases, worker ownership and idempotency keys.
+- `dead_letter_messages`: durable record of permanently failed jobs and their error codes.
 - `schema_migrations`: applied migration versions.
 
 ## Required transaction boundaries
@@ -46,16 +48,15 @@ database; hosting, connection management and deployment remain separate decision
   binaries through the provider-neutral object-storage adapter (initially Cloudflare R2).
 - Do not use GitHub runner files or workflow artifacts as durable application state.
 
-## Not implemented yet
+## Implementation status
 
-This migration is a schema foundation, not a production adapter. Python repository
-implementations, transaction management, connection pooling, migration automation,
-backup/restore operations and a production deployment have not been implemented.
-The in-memory repositories and queue remain test-only. A PostgreSQL-backed durable
-queue adapter now implements the queue contract; PostgreSQL is the initial queue
-backend candidate so the first deployment can avoid operating a separate broker.
-A different queue can be added later behind the same contract if throughput or
-operational measurements justify it.
+Python PostgreSQL repository and queue adapters are implemented and integration-tested
+against PostgreSQL 16 in CI. This remains a code foundation, not a production deployment:
+no hosting provider has been selected, no production database is provisioned, and
+migration automation, backup/restore operations, monitoring and operational runbooks
+remain deployment tasks. The in-memory repositories and queue remain test-only.
+PostgreSQL is the initial queue backend candidate to avoid operating a separate broker
+until measured throughput justifies one.
 
 
 ## Python adapter
