@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from gni.persistence.base import JobRepository
-from gni.persistence.outbox import OutboxRepository, OutboxStatus
+from gni.persistence.outbox import OutboxRepository
 from gni.queue.base import JobQueue
 
 
@@ -55,7 +55,7 @@ class OutboxPublisher:
                 self._queue.enqueue(
                     record.job, idempotency_key=event.idempotency_key
                 )
-            except Exception:
+            except Exception:  # noqa: BLE001 - transport adapters expose vendor-specific errors.
                 if event.attempts >= self._max_attempts:
                     self._outbox.dead_letter(
                         event.id, lease_token=lease.lease_token,
