@@ -2,7 +2,7 @@
 
 ## Implemented
 
-- Versioned job contract with explicit state transitions, attempt limits, trace IDs and JSON-safe payload validation.
+- Versioned job contract with explicit state transitions, attempt limits, trace IDs and JSON-safe payload validation.\n- First built-in specialist implementation: News Collection Agent with an injected RSS/Atom reader, source allowlist, permission enforcement, bounded collection and deterministic article IDs. It remains disabled until source approval and durable storage are configured.
 - Agent protocol and structured success/retryable/failure results.
 - Dispatcher requires a registered manifest, explicit activation, a trusted implementation injected by runtime code, and explicit grants for every declared permission.
 - Plugin entrypoint strings are metadata only. The dispatcher never imports modules named by a manifest.
