@@ -32,7 +32,7 @@ Import `grafana/global-news-intelligence-dashboard.json` and select the Promethe
 - No Prometheus server, Grafana server, alert receiver, or dashboard has been deployed by these files.
 - Queue, workflow and outbox metrics are opt-in: inject a shared `RuntimeTelemetry` into `WorkflowScheduler`, `WorkflowRecoveryService`, `OutboxPublisher` and `PostgresJobQueue`.\n- Queue metrics are emitted by the PostgreSQL adapter; the in-memory adapter remains a test/local-development adapter and does not emit queue operation metrics.
 - Metrics are not a substitute for durable job/workflow records or audit logs.
-- The metrics endpoint has no built-in authentication.
+- The protected WSGI metrics app requires a Bearer token; the plain low-level `PrometheusMetricsApp` remains unauthenticated and should not be mounted directly on a network-facing listener.
 
 
 ## Durable backlog and lease health
