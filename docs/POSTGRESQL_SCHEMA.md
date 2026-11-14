@@ -50,3 +50,37 @@ implementations, transaction management, connection pooling, migration automatio
 backup/restore operations and a production deployment have not been implemented.
 The in-memory repositories remain test-only. A durable queue provider is still pending;
 the outbox contract is designed to publish to whichever idempotent queue is selected.
+
+
+## Python adapter
+
+The optional PostgreSQL adapter is in `gni.persistence.postgres`. Install it with:
+
+```bash
+python -m pip install -e ".[postgres]"
+```
+
+Create a psycopg connection pool in the application composition root and inject it.
+The adapter does not connect during import:
+
+```python
+from psycopg_pool import ConnectionPool
+from gni.persistence.postgres import PostgresPersistence, PostgresWorkflowRepository
+
+pool = ConnectionPool(conninfo=DATABASE_URL, min_size=1, max_size=10)
+persistence = PostgresPersistence(pool)
+workflow_repository = PostgresWorkflowRepository(persistence)
+```
+
+Use `persistence` for the job, submission and outbox contracts, and the
+workflow wrapper for the workflow repository contract. The wrapper is necessary
+because the job and workflow protocols both define methods named `create`,
+`get` and `save` with different record types.
+
+Job + outbox creation is one database transaction. Outbox claims use
+`FOR UPDATE SKIP LOCKED` and UUID lease tokens; state changes compare the
+current lease token. Job and workflow writes use compare-and-set conditions.
+
+The adapter is an implementation foundation, not a deployed production service.
+Configure pool sizing, connection TLS, credentials/secrets, backup/restore,
+migration execution and operational monitoring before production use.
