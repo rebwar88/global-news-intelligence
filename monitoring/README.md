@@ -4,18 +4,22 @@ These files are deployment-ready templates; they do not install or run Prometheu
 
 ## Prometheus scrape
 
-The runtime's WSGI metrics endpoint is unauthenticated. Expose it only on a private network or protect it with an authenticated reverse proxy/firewall. Example scrape configuration:
+Use `MetricsHttpServer` from the optional `monitoring` extra inside the
+worker process, passing the exact same `MetricsRegistry` instance used by
+`RuntimeTelemetry`. It starts a threaded Waitress WSGI listener in that
+process, protected by a Bearer token validated with a constant-time comparison.
+The default bind is loopback; if Prometheus is on another host, bind only to a
+private interface and firewall the port to the Prometheus host.
 
-```yaml
-scrape_configs:
-  - job_name: gni-runtime
-    scrape_interval: 15s
-    metrics_path: /metrics
-    static_configs:
-      - targets: ["gni-runtime.internal:9108"]
-```
+Install with `pip install -e ".[postgres,monitoring]"`. Set
+`GNI_METRICS_BEARER_TOKEN` from a secret manager and pass it to the server;
+never store the token in Git. Call `close()` during graceful shutdown before
+the process exits.
 
-Use the actual private host and port selected by your deployment. Do not expose the endpoint publicly.
+The scrape fragment is in `prometheus/scrape-config.yml`. Configure the token
+file on the Prometheus host at the path shown there, restrict its permissions
+to the Prometheus service account, and replace the example target with the
+worker's private host and port. Never expose the listener publicly.
 
 ## Alert rules
 
@@ -30,7 +34,8 @@ Import `grafana/global-news-intelligence-dashboard.json` and select the Promethe
 ## Current limits
 
 - No Prometheus server, Grafana server, alert receiver, or dashboard has been deployed by these files.
-- Queue, workflow and outbox metrics are opt-in: inject a shared `RuntimeTelemetry` into `WorkflowScheduler`, `WorkflowRecoveryService`, `OutboxPublisher` and `PostgresJobQueue`.\n- Queue metrics are emitted by the PostgreSQL adapter; the in-memory adapter remains a test/local-development adapter and does not emit queue operation metrics.
+- Queue, workflow and outbox metrics are opt-in: inject a shared `RuntimeTelemetry` into `WorkflowScheduler`, `WorkflowRecoveryService`, `OutboxPublisher` and `PostgresJobQueue`.
+- Queue metrics are emitted by the PostgreSQL adapter; the in-memory adapter remains a test/local-development adapter and does not emit queue operation metrics.
 - Metrics are not a substitute for durable job/workflow records or audit logs.
 - The protected WSGI metrics app requires a Bearer token; the plain low-level `PrometheusMetricsApp` remains unauthenticated and should not be mounted directly on a network-facing listener.
 
