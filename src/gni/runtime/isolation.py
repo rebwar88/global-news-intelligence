@@ -18,7 +18,7 @@ from gni.contracts.agent import AgentContext, AgentResult, AgentStatus
 @dataclass(frozen=True, slots=True)
 class IsolationLimits:
     timeout_seconds: float = 60.0
-    memory_bytes: int = 1024 * 1024 * 1024
+    memory_bytes: int = 2 * 1024 * 1024 * 1024
     cpu_seconds: int = 55
 
     def __post_init__(self) -> None:
