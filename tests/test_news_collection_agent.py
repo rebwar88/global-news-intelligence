@@ -110,8 +110,8 @@ def test_agent_refuses_unapproved_sources_and_requires_permissions():
     rejected = agent.run(
         context("sources.read", "articles.create"), {"source_ids": ["not-configured"]}
     )
-    assert rejected.status == AgentStatus.RETRYABLE
-    assert rejected.error_code == "source_fetch_failed"
+    assert rejected.status == AgentStatus.FAILED
+    assert rejected.error_code == "source_not_approved"
 
 
 def test_agent_isolates_source_failures_and_returns_partial_results():
