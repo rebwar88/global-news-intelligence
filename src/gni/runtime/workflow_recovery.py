@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from gni.orchestration.scheduler import WorkflowScheduler
 from gni.persistence.workflows import WorkflowRepository, WorkflowStatus
+from gni.observability.telemetry import RuntimeTelemetry
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,9 +17,13 @@ class WorkflowRecoveryOutcome:
 
 
 class WorkflowRecoveryService:
-    def __init__(self, repository: WorkflowRepository, scheduler: WorkflowScheduler) -> None:
+    def __init__(
+        self, repository: WorkflowRepository, scheduler: WorkflowScheduler,
+        telemetry: RuntimeTelemetry | None = None,
+    ) -> None:
         self._repository = repository
         self._scheduler = scheduler
+        self._telemetry = telemetry
 
     def recover(self, *, limit: int = 100) -> WorkflowRecoveryOutcome:
         if limit < 1:
@@ -33,4 +38,10 @@ class WorkflowRecoveryService:
             advanced += 1
             completed += updated.status == WorkflowStatus.SUCCEEDED
             failed += updated.status == WorkflowStatus.FAILED
-        return WorkflowRecoveryOutcome(len(runs), advanced, completed, failed)
+        outcome = WorkflowRecoveryOutcome(len(runs), advanced, completed, failed)
+        if self._telemetry is not None:
+            self._telemetry.record_workflow_recovery(
+                scanned=outcome.scanned, advanced=outcome.advanced,
+                completed=outcome.completed, failed=outcome.failed,
+            )
+        return outcome
