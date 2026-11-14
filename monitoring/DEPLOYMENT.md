@@ -9,7 +9,7 @@ This stack runs Prometheus, Grafana and Alertmanager with Docker Compose. It is 
 - A separate, persistent disk/volume for monitoring data where possible.
 - Do not expose ports 3000, 9090, 9093 or 9108 directly to the public internet.
 
-The Compose file binds the Grafana, Prometheus and Alertmanager host ports to loopback only. Access them through an SSH tunnel or a properly authenticated TLS reverse proxy.
+The Compose file binds the Grafana, Prometheus and Alertmanager host ports to loopback only. Access them through an SSH tunnel or a properly authenticated TLS reverse proxy. The default Grafana cookie setting supports the loopback SSH-tunnel workflow; if you expose Grafana through a TLS reverse proxy, enable secure cookies in the Grafana environment.
 
 ## 2. Prepare secrets
 
@@ -28,7 +28,9 @@ Create the worker metrics token file. It must contain exactly the same token pas
 mkdir -p secrets
 umask 077
 openssl rand -hex 32 > secrets/gni-metrics-token
-chmod 600 secrets/gni-metrics-token
+chmod 640 secrets/gni-metrics-token
+# Make the file readable by the Prometheus container's unprivileged UID (65534).
+sudo chown 65534:65534 secrets/gni-metrics-token
 ```
 
 Transfer that token securely to the worker's secret manager as `GNI_METRICS_BEARER_TOKEN`; do not reuse the Grafana password.
