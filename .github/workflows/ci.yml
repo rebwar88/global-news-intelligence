@@ -42,7 +42,4 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       - name: Lint
-        run: |
-          ruff check --fix src/gni/connectors/rss.py
-          sed -n '1,24p' src/gni/connectors/rss.py
-          ruff check .
+        run: ruff check .
