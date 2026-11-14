@@ -9,15 +9,17 @@ from psycopg.rows import dict_row
 
 from gni.contracts.jobs import Job, JobStatus
 from gni.queue.base import QueueReservation
+from gni.observability.telemetry import RuntimeTelemetry
 
 
 class PostgresJobQueue:
     """PostgreSQL JobQueue adapter; inject the shared psycopg connection pool."""
 
-    def __init__(self, pool: Any) -> None:
+    def __init__(self, pool: Any, *, telemetry: RuntimeTelemetry | None = None) -> None:
         if pool is None or not callable(getattr(pool, "connection", None)):
             raise TypeError("pool must provide connection().")
         self._pool = pool
+        self._telemetry = telemetry
 
     def enqueue(self, job: Job, *, idempotency_key: str) -> bool:
         if not idempotency_key or not idempotency_key.strip():
@@ -31,6 +33,7 @@ class PostgresJobQueue:
                 (job.id, idempotency_key),
             )
             if cur.rowcount == 1:
+                self._record("enqueue", "inserted")
                 return True
             cur.execute(
                 "SELECT job_id FROM queue_messages WHERE idempotency_key=%s",
@@ -39,6 +42,7 @@ class PostgresJobQueue:
             existing = cur.fetchone()
             if existing is None or existing[0] != job.id:
                 raise ValueError("Queue idempotency key is already bound to another job.")
+            self._record("enqueue", "duplicate")
             return False
 
     def reserve(
@@ -73,6 +77,7 @@ class PostgresJobQueue:
             )
             row = cur.fetchone()
             if row is None:
+                self._record("reserve", "empty")
                 return None
             job = Job(
                 id=row["id"], agent_id=row["agent_id"],
@@ -81,6 +86,7 @@ class PostgresJobQueue:
                 trace_id=row["trace_id"], contract_version=row["contract_version"],
                 created_at=row["created_at"],
             )
+            self._record("reserve", "reserved")
             return QueueReservation(
                 reservation_id=str(row["reservation_token"]), job=job
             )
@@ -96,6 +102,7 @@ class PostgresJobQueue:
             )
             if cur.rowcount != 1:
                 raise ValueError("Unknown or stale queue reservation.")
+            self._record("acknowledge", "success")
 
     def release(
         self, reservation: QueueReservation, *, delay_seconds: int = 0
@@ -113,6 +120,7 @@ class PostgresJobQueue:
             )
             if cur.rowcount != 1:
                 raise ValueError("Unknown or stale queue reservation.")
+            self._record("release", "success")
 
     def dead_letter(self, reservation: QueueReservation, *, error_code: str) -> None:
         if not error_code or len(error_code) > 128:
@@ -135,6 +143,9 @@ class PostgresJobQueue:
             )
             if cur.rowcount != 1:
                 raise ValueError("Unknown, stale, or already dead-lettered reservation.")
+            self._record("dead_letter", "created")
+            if self._telemetry is not None:
+                self._telemetry.record_dead_letter(action="created", reason=error_code)
 
 
     def list_dead_letters(self, *, limit: int = 100) -> tuple[dict[str, Any], ...]:
@@ -160,6 +171,7 @@ class PostgresJobQueue:
             )
             dead_letter = cur.fetchone()
             if dead_letter is None:
+                self._record("dead_letter_replay", "not_found")
                 return False
             cur.execute(
                 """UPDATE jobs SET status='retryable',attempt=0,error='{}'::jsonb,
@@ -183,7 +195,14 @@ class PostgresJobQueue:
             )
             if cur.rowcount != 1:
                 raise RuntimeError("Dead-letter record changed during replay.")
+            self._record("dead_letter_replay", "requeued")
+            if self._telemetry is not None:
+                self._telemetry.record_dead_letter(action="replayed", reason="operator_request")
             return True
+
+    def _record(self, action: str, result: str) -> None:
+        if self._telemetry is not None:
+            self._telemetry.record_queue_action(action=action, result=result)
 
     @staticmethod
     def _token(value: str) -> UUID:
