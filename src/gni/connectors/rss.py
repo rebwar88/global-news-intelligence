@@ -1,4 +1,5 @@
 """Bounded RSS 2.0 and Atom feed reader with an explicit source allowlist."""
+
 from __future__ import annotations
 
 import ipaddress
