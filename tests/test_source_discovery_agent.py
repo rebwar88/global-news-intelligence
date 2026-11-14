@@ -86,7 +86,7 @@ def test_agent_requires_permissions():
 def test_agent_returns_ranked_tiers_and_filters_unsafe_evidence():
     candidates = (
         strong_candidate(source_id="z-source", evidence_urls=("https://publisher.example.org/a", "http://bad.example/a")),
-        strong_candidate(source_id="a-source", human_approved=True, approval_reference="human-7"),
+        strong_candidate(source_id="a-source"),
     )
     agent = SourceDiscoveryAgent(
         "source-discovery",
