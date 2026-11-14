@@ -7,7 +7,8 @@ contracts: jobs, workflow runs and transactional outbox events. It does not sele
 database hosting vendor or a queue provider. PostgreSQL is the planned relational
 database; hosting, connection management and deployment remain separate decisions.
 
-Migration: `migrations/postgresql/001_initial_persistence.sql`.
+ Migrations: `migrations/postgresql/001_initial_persistence.sql` and
+`migrations/postgresql/002_job_queue.sql`.
 
 ## Tables
 
@@ -17,6 +18,8 @@ Migration: `migrations/postgresql/001_initial_persistence.sql`.
   version for compare-and-set updates.
 - `outbox_events`: minimal `job.queued` publication intent, linked to its job by a
   foreign key. It stores no duplicate job payload.
+- `queue_messages`: durable queue records linked to authoritative jobs, with delayed
+  availability, visibility leases, worker ownership and idempotency keys.
 - `schema_migrations`: applied migration versions.
 
 ## Required transaction boundaries
@@ -48,8 +51,11 @@ Migration: `migrations/postgresql/001_initial_persistence.sql`.
 This migration is a schema foundation, not a production adapter. Python repository
 implementations, transaction management, connection pooling, migration automation,
 backup/restore operations and a production deployment have not been implemented.
-The in-memory repositories remain test-only. A durable queue provider is still pending;
-the outbox contract is designed to publish to whichever idempotent queue is selected.
+The in-memory repositories and queue remain test-only. A PostgreSQL-backed durable
+queue adapter now implements the queue contract; PostgreSQL is the initial queue
+backend candidate so the first deployment can avoid operating a separate broker.
+A different queue can be added later behind the same contract if throughput or
+operational measurements justify it.
 
 
 ## Python adapter
@@ -84,3 +90,25 @@ current lease token. Job and workflow writes use compare-and-set conditions.
 The adapter is an implementation foundation, not a deployed production service.
 Configure pool sizing, connection TLS, credentials/secrets, backup/restore,
 migration execution and operational monitoring before production use.
+
+
+## Durable PostgreSQL queue
+
+The optional adapter is `gni.queue.postgres.PostgresJobQueue`. It uses the same
+psycopg connection pool as `PostgresPersistence`:
+
+```python
+from gni.queue.postgres import PostgresJobQueue
+
+queue = PostgresJobQueue(pool)
+```
+
+Queue insertion is idempotent and references the authoritative `jobs` row.
+Reservations use `FOR UPDATE SKIP LOCKED`, worker IDs, UUID fencing tokens and
+visibility expirations. A worker may acknowledge or release only its current
+reservation. Expired reservations become available to another worker; delayed
+release updates `available_at`. Acknowledged rows remain as idempotency tombstones.
+
+This queue is durable but shares PostgreSQL's capacity with job/workflow/outbox
+traffic. Before high-volume production, benchmark concurrent reservation latency,
+database connection pressure, table/index growth and cleanup/retention strategy.
