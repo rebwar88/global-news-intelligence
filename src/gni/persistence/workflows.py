@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Protocol
 
 from gni.orchestration.planner import ExecutionPlan
 
@@ -65,14 +66,11 @@ class WorkflowRun:
         raise KeyError(step_id)
 
 
-class WorkflowRepository:
+class WorkflowRepository(Protocol):
     """Persistence contract; save must atomically compare the expected version."""
 
-    def create(self, run: WorkflowRun) -> bool:
-        raise NotImplementedError
+    def create(self, run: WorkflowRun) -> bool: ...
 
-    def get(self, workflow_id: str) -> WorkflowRun | None:
-        raise NotImplementedError
+    def get(self, workflow_id: str) -> WorkflowRun | None: ...
 
-    def save(self, run: WorkflowRun, *, expected_version: int) -> bool:
-        raise NotImplementedError
+    def save(self, run: WorkflowRun, *, expected_version: int) -> bool: ...
