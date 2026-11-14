@@ -150,6 +150,7 @@ def test_agent_rejects_unbounded_or_duplicate_source_lists():
         )
         assert result.status == AgentStatus.FAILED
 
+
 def test_rss_http_client_fetches_allowlisted_https_feed_without_redirects(monkeypatch):
     import gni.connectors.rss as rss
 
