@@ -13,6 +13,8 @@ from html.parser import HTMLParser
 from typing import Protocol
 from urllib import error, request
 from urllib.parse import urlsplit
+
+
 _ATOM = "{http://www.w3.org/2005/Atom}"
 
 
