@@ -64,10 +64,9 @@ class MetricsHttpServer:
     def close(self, *, timeout_seconds: float = 10.0) -> None:
         if timeout_seconds < 0:
             raise ValueError("timeout_seconds cannot be negative.")
-        if self._closed:
-            return
-        self._closed = True
-        self._server.close()
+        if not self._closed:
+            self._server.close()
+            self._closed = True
         if self._thread is not None:
             self._thread.join(timeout_seconds)
             if self._thread.is_alive():
