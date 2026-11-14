@@ -12,7 +12,9 @@ psycopg = pytest.importorskip("psycopg")
 from psycopg_pool import ConnectionPool
 
 from gni.contracts.jobs import Job, JobStatus
+from gni.observability.audit import AuditEvent
 from gni.orchestration.planner import ExecutionPlan, WorkflowStep
+from gni.persistence.audit_postgres import PostgresAuditSink
 from gni.persistence.base import JobRecord
 from gni.persistence.postgres import PostgresPersistence, PostgresWorkflowRepository
 from gni.persistence.workflows import (
@@ -20,8 +22,6 @@ from gni.persistence.workflows import (
     WorkflowStepState,
     WorkflowStepStatus,
 )
-from gni.observability.audit import AuditEvent
-from gni.persistence.audit_postgres import PostgresAuditSink
 from gni.queue.postgres import PostgresJobQueue
 
 
