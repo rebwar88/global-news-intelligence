@@ -113,3 +113,53 @@ groups:
         annotations:
           summary: "GNI workers are polling an empty queue"
           description: "Workers have been running but no queue reservations succeeded for 15 minutes. This may be normal during quiet periods; review only if work is expected."
+
+      - alert: GNIQueueBacklogOldestAgeHigh
+        expr: max(gni_queue_oldest_pending_seconds) > 300
+        for: 5m
+        labels:
+          severity: warning
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI queue contains work pending for over 5 minutes"
+          description: "The oldest ready queue message is older than 5 minutes. Confirm the collector and worker fleet are healthy."
+
+      - alert: GNIOutboxBacklogOldestAgeHigh
+        expr: max(gni_outbox_oldest_pending_seconds) > 180
+        for: 5m
+        labels:
+          severity: warning
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI outbox publication is falling behind"
+          description: "The oldest ready outbox event is older than 3 minutes. Check the publisher, database and queue adapter."
+
+      - alert: GNIExpiredLeasesDetected
+        expr: sum(gni_queue_expired_leases) + sum(gni_outbox_expired_leases) > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI has expired queue or outbox leases"
+          description: "Expired reservations are awaiting reclamation. Check worker/publisher crashes, lease duration and recovery cadence."
+
+      - alert: GNIUnresolvedDeadLettersPresent
+        expr: sum(gni_dead_letters_open) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI has unresolved dead-letter jobs"
+          description: "One or more jobs require operator review. Inspect the dead-letter records before any manual replay."
+
+      - alert: GNIWorkflowBacklogGrowing
+        expr: sum(gni_workflows_running) > 100
+        for: 10m
+        labels:
+          severity: warning
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI has more than 100 active workflows"
+          description: "The number of active workflow runs is above the provisional threshold. Tune based on expected throughput and run duration."
