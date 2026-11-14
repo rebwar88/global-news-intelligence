@@ -29,9 +29,10 @@ The dispatcher is synchronous and does not execute untrusted plugin code in an i
 - The Orchestrator validates declarative workflow DAGs, checks that every referenced agent is registered and explicitly active, rejects missing dependencies and cycles, and returns a deterministic topological order.
 - The planner is data-driven: it does not hardcode the current 12-agent catalogue, so new registered agents can participate without editing Orchestrator code.
 - Job submission validates agent activation, persists the job before queue publication, and uses an idempotency key to avoid creating duplicate jobs. Repeated submissions can re-attempt queue publication for a still-queued job.
-- If queue publication fails, the service raises `SubmissionPendingError` with the persisted job ID. The record is retained so a later retry can publish it; callers must not treat this as queued.
+- The optional transactional-outbox submission path atomically persists the job and a minimal `job.queued` event through one `SubmissionRepository` transaction. Queue publication is performed separately by `OutboxPublisher`; a crash after the DB commit does not lose the publication intent.
+- The legacy persist-then-enqueue path remains available for compatibility, but has a crash window and should not be used in production. Configure `outbox_repository` and ensure it is backed by the same durable database transaction as the job repository.
 - This first Orchestrator increment plans workflows but does not yet persist workflow-run state or automatically release dependent steps after predecessor completion. Those require a durable workflow-state/scheduler adapter.
-- The current persist-then-enqueue sequence is not an atomic transaction. Production persistence/queue integration should use a transactional outbox (or an equivalent recoverable publisher) to close the crash window between database commit and queue publication. The in-memory adapters remain development/test only.
+- The transactional outbox contracts and bounded recovery publisher are implemented. The publisher claims events with expiring leases and fencing tokens, uses queue idempotency keys, retries with capped exponential backoff, and dead-letters exhausted or invalid events. Expired PROCESSING leases can be reclaimed on the next publisher tick. The in-memory implementation is process-local and test-only; production requires a database adapter that implements job+outbox insertion in one real transaction and atomic claim/lease updates.
 
 
 ## Workflow state and scheduling
