@@ -214,3 +214,38 @@ def test_rss_http_client_rejects_oversized_response(monkeypatch):
     client._opener = Opener()
     with pytest.raises(ValueError, match="size limit"):
         client.fetch(source())
+
+def test_news_collection_agent_executes_through_trusted_dispatcher():
+    from pathlib import Path
+
+    from gni.contracts.jobs import Job, JobStatus
+    from gni.registry import PluginLoader
+    from gni.runtime.dispatcher import AgentDispatcher
+
+    repository_root = Path(__file__).resolve().parents[1]
+    loader = PluginLoader()
+    assert loader.discover(repository_root / "agents") == ()
+    registry = loader.registry
+    dispatcher = AgentDispatcher(
+        registry=registry,
+        agents={
+            "news-collection": NewsCollectionAgent(
+                "news-collection",
+                {"sample-news": source()},
+                FakeReader(items=(FeedItem(
+                    "Dispatched headline",
+                    "https://news.example.org/dispatch",
+                    external_id="dispatch-1",
+                ),)),
+            )
+        },
+        active_plugins=frozenset({"news-collection"}),
+        granted_permissions={
+            "news-collection": frozenset({"sources.read", "articles.create"})
+        },
+    )
+    final_job, output = dispatcher.execute(
+        Job(agent_id="news-collection", payload={"source_ids": ["sample-news"]})
+    )
+    assert final_job.status == JobStatus.SUCCEEDED
+    assert output["articles"][0]["title"] == "Dispatched headline"
