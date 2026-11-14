@@ -1,0 +1,63 @@
+groups:
+  - name: global-news-intelligence-runtime
+    interval: 30s
+    rules:
+      - alert: GNIWorkerTargetDown
+        expr: up{job="gni-runtime"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI runtime metrics target is down"
+          description: "Prometheus cannot scrape the GNI runtime target for at least 2 minutes. Check the runtime process, network policy, and private metrics endpoint."
+
+      - alert: GNIWorkerLoopErrors
+        expr: sum by (instance, error_type) (increase(gni_worker_errors_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI worker loop errors detected"
+          description: "One or more worker supervisor errors occurred in the last 5 minutes. Inspect sanitized application logs and audit events."
+
+      - alert: GNIAuditWritesFailing
+        expr: sum(increase(gni_audit_write_failures_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI audit writes are failing"
+          description: "Audit sink writes failed in the last 5 minutes. Check database connectivity, permissions, and audit storage capacity."
+
+      - alert: GNIMetricsWritesFailing
+        expr: sum(increase(gni_metrics_write_failures_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI metrics are being dropped"
+          description: "The in-process metrics registry rejected metric updates. Check cardinality limits and label values."
+
+      - alert: GNIJobProcessingP95High
+        expr: histogram_quantile(0.95, sum by (le, agent) (rate(gni_job_processing_duration_seconds_bucket[10m]))) > 30
+        for: 10m
+        labels:
+          severity: warning
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI job processing p95 is above 30 seconds"
+          description: "At least one agent has sustained p95 processing latency above the provisional 30-second threshold. Tune this threshold after observing real workloads."
+
+      - alert: GNIJobFailuresDetected
+        expr: sum(increase(gni_jobs_processed_total{status="failed"}[10m])) > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI jobs failed"
+          description: "At least one job was recorded with failed status in the last 10 minutes. Inspect job records and dead-letter handling; this metric is process-local."
