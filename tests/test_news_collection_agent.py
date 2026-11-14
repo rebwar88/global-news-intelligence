@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 import pytest
 
-from gni.connectors import rss
 from gni.agents.news_collection import NewsCollectionAgent
+from gni.connectors import rss
 from gni.connectors.rss import FeedItem, FeedSource, parse_feed
 from gni.contracts.agent import AgentStatus
 
@@ -73,8 +73,6 @@ def test_feed_parser_rejects_dtd_and_oversized_document():
 
 
 def test_source_requires_explicit_approval_and_exact_https_host():
-    import pytest
-
     with pytest.raises(ValueError):
         FeedSource("sample-news", "Sample", "https://feeds.example.org/rss", frozenset({"feeds.example.org"}))
     with pytest.raises(ValueError):
