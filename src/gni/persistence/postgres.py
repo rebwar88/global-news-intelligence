@@ -184,6 +184,16 @@ class PostgresPersistence:
             cur.execute("SELECT * FROM workflow_runs WHERE workflow_id=%s", (workflow_id,))
             return self._run(cur.fetchone())
 
+    def list_active_workflows(self, *, limit: int = 100) -> tuple[WorkflowRun, ...]:
+        if limit < 1:
+            raise ValueError("limit must be positive.")
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                "SELECT * FROM workflow_runs WHERE status='running' "
+                "ORDER BY updated_at ASC LIMIT %s", (limit,)
+            )
+            return tuple(self._run(row) for row in cur.fetchall())
+
     def save_workflow(self, run: WorkflowRun, *, expected_version: int) -> bool:
         if run.version != expected_version + 1:
             raise ValueError("Workflow version must increment exactly once.")
@@ -260,3 +270,6 @@ class PostgresWorkflowRepository:
 
     def save(self, run: WorkflowRun, *, expected_version: int) -> bool:
         return self._persistence.save_workflow(run, expected_version=expected_version)
+
+    def list_active(self, *, limit: int = 100) -> tuple[WorkflowRun, ...]:
+        return self._persistence.list_active_workflows(limit=limit)
