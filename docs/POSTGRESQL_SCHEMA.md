@@ -9,7 +9,8 @@ database; hosting, connection management and deployment remain separate decision
 
  Migrations: `migrations/postgresql/001_initial_persistence.sql`,
 `migrations/postgresql/002_job_queue.sql`, and
-`migrations/postgresql/003_dead_letter_messages.sql`.
+`migrations/postgresql/003_dead_letter_messages.sql`, and
+`migrations/postgresql/004_audit_events.sql`.
 
 ## Tables
 
@@ -22,6 +23,7 @@ database; hosting, connection management and deployment remain separate decision
 - `queue_messages`: durable queue records linked to authoritative jobs, with delayed
   availability, visibility leases, worker ownership and idempotency keys.
 - `dead_letter_messages`: durable record of permanently failed jobs, attempt counts, resolution timestamps and operator replay reasons.
+- `audit_events`: structured security and operational events with trace IDs; metadata is sanitized before insertion.
 - `schema_migrations`: applied migration versions.
 
 ## Required transaction boundaries
@@ -90,7 +92,7 @@ current lease token. Job and workflow writes use compare-and-set conditions.
 
 The adapter is an implementation foundation, not a deployed production service.
 Configure pool sizing, connection TLS, credentials/secrets, backup/restore,
-migration execution and operational monitoring before production use.
+migration execution, audit retention, restricted audit DB roles and operational monitoring before production use.
 
 
 ## Durable PostgreSQL queue
@@ -123,3 +125,13 @@ Dead-letter operations are available on `PostgresJobQueue`:
   resets its attempt counter, reactivates the original queue row and marks the
   dead-letter record resolved. The resolved record remains as an audit trail.
 - A later failure can create a new unresolved dead-letter record for the same job.
+
+
+## Audit persistence
+
+Use `PostgresAuditSink` from `gni.persistence.audit_postgres` with the same
+bounded psycopg pool. Audit metadata is redacted and size-limited by the
+`AuditEvent` contract before it reaches the database. Give the runtime audit writer
+INSERT-only permissions on `audit_events`; give audit readers SELECT-only access.
+Do not grant routine worker credentials UPDATE or DELETE on this table. Database
+owners remain privileged, so protect migration credentials and backups separately.
