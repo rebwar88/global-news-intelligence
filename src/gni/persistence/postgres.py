@@ -98,18 +98,18 @@ class PostgresPersistence:
         )
 
     def get(self, job_id: str) -> JobRecord | None:
-        with self._pool.connection() as conn, conn.cursor() as cur:
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute("SELECT * FROM jobs WHERE id=%s", (job_id,))
             return self._job(cur.fetchone())
 
     def get_by_idempotency_key(self, idempotency_key: str) -> JobRecord | None:
-        with self._pool.connection() as conn, conn.cursor() as cur:
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute("SELECT * FROM jobs WHERE idempotency_key=%s", (idempotency_key,))
             return self._job(cur.fetchone())
 
     def save(self, record: JobRecord, *, expected_status: JobStatus) -> bool:
         j = record.job
-        with self._pool.connection() as conn, conn.cursor() as cur:
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """UPDATE jobs SET status=%s,payload=%s,output=%s,error=%s,attempt=%s,
                 max_attempts=%s,trace_id=%s,contract_version=%s,updated_at=NOW()
@@ -124,7 +124,7 @@ class PostgresPersistence:
     ) -> tuple[JobRecord, bool]:
         if not idempotency_key or not idempotency_key.strip():
             raise ValueError("idempotency_key must not be empty.")
-        with self._pool.connection() as conn, conn.cursor() as cur:
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """INSERT INTO jobs
                 (id,agent_id,status,payload,output,error,attempt,max_attempts,trace_id,
@@ -153,7 +153,7 @@ class PostgresPersistence:
     def _create_job(self, record: JobRecord, key: str) -> bool:
         if not key or not key.strip():
             raise ValueError("idempotency_key must not be empty.")
-        with self._pool.connection() as conn, conn.cursor() as cur:
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """INSERT INTO jobs
                 (id,agent_id,status,payload,output,error,attempt,max_attempts,trace_id,
@@ -165,7 +165,7 @@ class PostgresPersistence:
 
     def create_workflow(self, run: WorkflowRun) -> bool:
         plan, steps = self._plan_data(run)
-        with self._pool.connection() as conn, conn.cursor() as cur:
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """INSERT INTO workflow_runs
                 (workflow_id,plan,steps,status,version,created_at,updated_at)
@@ -177,7 +177,7 @@ class PostgresPersistence:
             return cur.rowcount == 1
 
     def get_workflow(self, workflow_id: str) -> WorkflowRun | None:
-        with self._pool.connection() as conn, conn.cursor() as cur:
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute("SELECT * FROM workflow_runs WHERE workflow_id=%s", (workflow_id,))
             return self._run(cur.fetchone())
 
@@ -185,7 +185,7 @@ class PostgresPersistence:
         if run.version != expected_version + 1:
             raise ValueError("Workflow version must increment exactly once.")
         plan, steps = self._plan_data(run)
-        with self._pool.connection() as conn, conn.cursor() as cur:
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """UPDATE workflow_runs SET plan=%s,steps=%s,status=%s,version=%s,updated_at=%s
                 WHERE workflow_id=%s AND version=%s""",
@@ -197,7 +197,7 @@ class PostgresPersistence:
     def claim_batch(self, *, now: datetime, limit: int, lease_seconds: int) -> tuple[OutboxLease, ...]:
         if limit < 1 or lease_seconds < 1:
             raise ValueError("limit and lease_seconds must be positive.")
-        with self._pool.connection() as conn, conn.cursor() as cur:
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """WITH candidates AS (
                     SELECT id FROM outbox_events
@@ -233,7 +233,7 @@ class PostgresPersistence:
             event_uuid, lease_uuid = UUID(event_id), UUID(token)
         except (ValueError, TypeError):
             return False
-        with self._pool.connection() as conn, conn.cursor() as cur:
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute(
                 """UPDATE outbox_events SET status=%s,last_error_code=%s,
                 available_at=COALESCE(%s,available_at),lease_token=NULL,locked_until=NULL
