@@ -10,12 +10,7 @@
 
 A production repository adapter must provide durable storage, unique idempotency constraints, atomic compare-and-set updates, and safe concurrent access. The worker must persist the final job state and outcome before queue acknowledgement. If acknowledgement fails after persistence, redelivery must detect the already completed job and acknowledge without executing the agent again. If a worker crashes before persistence, queue visibility expiry must allow another worker to retry.
 
-A database transaction plus a transactional outbox may be appropriate when job creation and queue publication must be coordinated. The exact design depends on the selected queue and database; no vendor has been selected yet.
-
-## Deliberately not selected
-
-PostgreSQL is a candidate, not a confirmed decision. Redis, managed queues, and other durable queue services remain options. Do not treat this in-memory adapter as production persistence or rely on GitHub runner files/artifacts for durable state.
-
+A database transaction plus a transactional outbox coordinates job creation and queue publication intent. The initial PostgreSQL schema foundation is documented in [POSTGRESQL_SCHEMA.md](POSTGRESQL_SCHEMA.md); it does not yet include a production Python adapter or a hosting-provider decision.
 
 ## Workflow-run persistence
 
@@ -23,7 +18,6 @@ PostgreSQL is a candidate, not a confirmed decision. Redis, managed queues, and 
 - save() must atomically compare the expected version and persist exactly one version increment. This protects against stale scheduler updates.
 - Workflow state is separate from job state: the job repository remains authoritative for agent execution outcomes; workflow state records dependency progress and orchestration status.
 - The in-memory workflow adapter is process-local and non-durable. A production adapter must persist workflow runs across separate GitHub Actions executions and support concurrent scheduler invocations safely.
-
 
 ## Transactional outbox
 
@@ -34,3 +28,7 @@ PostgreSQL is a candidate, not a confirmed decision. Redis, managed queues, and 
 - If a publisher dies while holding a lease, a later tick reclaims the event after `locked_until`. If it dies after queue enqueue but before marking the event published, the queue idempotency key makes the next enqueue safe.
 - `InMemoryOutboxRepository` provides a lock-protected atomic test implementation only. It is not durable across process exits and is not a production database adapter.
 - The outbox provides reliable at-least-once publication, not exactly-once execution or exactly-once external side effects.
+
+## PostgreSQL schema foundation
+
+The initial migration creates `jobs`, `workflow_runs`, `outbox_events` and `schema_migrations`, with uniqueness, foreign-key, state and lookup constraints. See [POSTGRESQL_SCHEMA.md](POSTGRESQL_SCHEMA.md) for transaction requirements and operational boundaries. The schema is not evidence that a production adapter or database service is deployed.
