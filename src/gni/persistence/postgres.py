@@ -117,7 +117,7 @@ class PostgresPersistence:
                 """UPDATE jobs SET status=%s,payload=%s,output=%s,error=%s,attempt=%s,
                 max_attempts=%s,trace_id=%s,contract_version=%s,updated_at=NOW()
                 WHERE id=%s AND status=%s""",
-                (j.status.value, j.payload, record.output, record.error, j.attempt,
+                (j.status.value, Jsonb(j.payload), Jsonb(record.output), Jsonb(record.error), j.attempt,
                  j.max_attempts, j.trace_id, j.contract_version, j.id, expected_status.value),
             )
             return cur.rowcount == 1
