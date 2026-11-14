@@ -12,8 +12,7 @@ from email.utils import parsedate_to_datetime
 from html import unescape
 from html.parser import HTMLParser
 from typing import Protocol
-from urllib import error
-from urllib import request as urllib_request
+from urllib import error, request as urllib_request
 from urllib.parse import urlsplit
 
 
