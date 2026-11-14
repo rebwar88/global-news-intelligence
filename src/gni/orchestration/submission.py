@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from uuid import uuid4
 from typing import Any
+from uuid import uuid4
 
 from gni.contracts.jobs import Job, JobStatus
 from gni.persistence.base import JobRecord, JobRepository
