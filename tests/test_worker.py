@@ -150,7 +150,7 @@ def test_process_isolated_runner_executes_agent_with_resource_limits():
     if __import__("os").name != "posix":
         return
     result = ProcessIsolatedAgentRunner(
-        IsolationLimits(timeout_seconds=5, memory_bytes=1024 * 1024 * 1024, cpu_seconds=4)
+        IsolationLimits(timeout_seconds=5, memory_bytes=2 * 1024 * 1024 * 1024, cpu_seconds=4)
     ).run(SuccessAgent(), AgentContext("job-1", "trace-1"), {"value": "isolated"})
     assert result.status == AgentStatus.SUCCEEDED
     assert result.output == {"value": "isolated"}
@@ -175,7 +175,7 @@ def test_process_isolated_runner_terminates_timed_out_agent():
             return AgentResult(AgentStatus.SUCCEEDED, {"late": True})
 
     runner = ProcessIsolatedAgentRunner(
-        IsolationLimits(timeout_seconds=0.1, memory_bytes=1024 * 1024 * 1024, cpu_seconds=2)
+        IsolationLimits(timeout_seconds=0.1, memory_bytes=2 * 1024 * 1024 * 1024, cpu_seconds=2)
     )
     with pytest.raises(TimeoutError):
         runner.run(SlowAgent(), AgentContext("job-timeout", "trace-timeout"), {})
