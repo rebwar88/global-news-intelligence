@@ -44,9 +44,7 @@ class RuntimeHealthMonitor:
                 succeeded += 1
             except Exception as exc:  # noqa: BLE001 - monitor boundary
                 failed += 1
-                self._collector._telemetry.record_health_collection_error(
-                    error_type=type(exc).__name__
-                )
+                self._collector.record_collection_error(exc)
                 if self._on_error is not None:
                     self._on_error(exc)
             if max_iterations is None or iterations < max_iterations:
