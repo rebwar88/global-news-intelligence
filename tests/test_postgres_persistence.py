@@ -21,6 +21,8 @@ from gni.persistence.workflows import (
     WorkflowStepStatus,
 )
 from gni.queue.postgres import PostgresJobQueue
+from gni.observability.audit import AuditEvent
+from gni.persistence.audit_postgres import PostgresAuditSink
 
 
 @pytest.fixture(scope="module")
@@ -33,6 +35,7 @@ def persistence():
         "migrations/postgresql/001_initial_persistence.sql",
         "migrations/postgresql/002_job_queue.sql",
         "migrations/postgresql/003_dead_letter_messages.sql",
+        "migrations/postgresql/004_audit_events.sql",
     ):
         migration = Path(migration_path).read_text()
         with pool.connection() as conn:
@@ -216,3 +219,23 @@ def test_postgres_dead_letter_can_be_inspected_and_replayed(persistence):
     assert replay is not None
     assert replay.job.status == JobStatus.RETRYABLE
     queue.acknowledge(replay)
+
+
+
+def test_postgres_audit_sink_persists_and_filters_traceable_events(persistence):
+    sink = PostgresAuditSink(persistence._pool)
+    event = AuditEvent(
+        action="job.processed", resource_type="job", resource_id=f"audit-{uuid4()}",
+        actor_type="worker", actor_id="worker-test", trace_id=f"trace-{uuid4()}",
+        outcome="succeeded",
+        metadata={"attempt": 1, "api_token": "must-not-be-stored"},
+    )
+    sink.record(event)
+    sink.record(event)
+    found = sink.list_recent(
+        limit=20, resource_type="job", resource_id=event.resource_id,
+        trace_id=event.trace_id,
+    )
+    assert len(found) == 1
+    assert found[0].event_id == event.event_id
+    assert found[0].metadata["api_token"] == "[redacted]"
