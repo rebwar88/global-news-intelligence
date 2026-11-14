@@ -94,10 +94,15 @@ Start with alerts for:
 - A worker count of zero while a worker service is expected to run.
 - High p95/p99 job processing duration relative to each agent's configured timeout.
 
-The repository does not yet include a Prometheus server, Grafana dashboards, alert
-rules, external log aggregation or model-provider token/cost instrumentation. Add
-provider usage metrics only when model adapters expose trustworthy token and cost
-usage; never estimate billing from prompt length and present it as actual spend.
+Current phase uses GitHub Actions-native monitoring: CI publishes JUnit results,
+and a workflow triggered on CI completion writes a Markdown job summary plus JSON
+and Markdown artifacts (30-day retention). This is suitable for bounded batch runs,
+not a persistent time-series database. Prometheus scrape configuration, Grafana
+dashboard and alert-rule assets are retained for a later persistent-runtime phase;
+no Prometheus/Grafana service is deployed now. External log aggregation and
+model-provider token/cost instrumentation are also future work. Add provider usage
+metrics only when adapters expose trustworthy token and cost usage; never estimate
+billing from prompt length and present it as actual spend.
 
 
 ## Durable runtime health snapshots
