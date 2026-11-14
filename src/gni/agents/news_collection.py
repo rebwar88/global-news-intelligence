@@ -49,12 +49,13 @@ class NewsCollectionAgent:
         articles: list[dict[str, Any]] = []
         source_results: list[dict[str, Any]] = []
         failures: list[str] = []
+        rejected: list[str] = []
         fetched_at = datetime.now(UTC).isoformat()
 
         for source_id in source_ids:
             source = self.sources.get(source_id)
             if source is None or not source.approved or not source.enabled:
-                failures.append(source_id)
+                rejected.append(source_id)
                 source_results.append({"source_id": source_id, "status": "rejected"})
                 continue
             try:
@@ -96,6 +97,12 @@ class NewsCollectionAgent:
                 error_code="source_fetch_failed",
                 message="No articles were collected; retry the failed source requests.",
             )
+        if rejected and not articles and not failures:
+            return AgentResult(
+                status=AgentStatus.FAILED,
+                error_code="source_not_approved",
+                message="One or more requested sources are not configured and approved.",
+            )
         return AgentResult(
             status=AgentStatus.SUCCEEDED,
             output={
@@ -103,6 +110,7 @@ class NewsCollectionAgent:
                 "articles": articles,
                 "source_results": source_results,
                 "failed_source_ids": failures,
-                "partial": bool(failures),
+                "rejected_source_ids": rejected,
+                "partial": bool(failures or rejected),
             },
         )
