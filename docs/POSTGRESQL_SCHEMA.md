@@ -21,7 +21,7 @@ database; hosting, connection management and deployment remain separate decision
   foreign key. It stores no duplicate job payload.
 - `queue_messages`: durable queue records linked to authoritative jobs, with delayed
   availability, visibility leases, worker ownership and idempotency keys.
-- `dead_letter_messages`: durable record of permanently failed jobs and their error codes.
+- `dead_letter_messages`: durable record of permanently failed jobs, attempt counts, resolution timestamps and operator replay reasons.
 - `schema_migrations`: applied migration versions.
 
 ## Required transaction boundaries
@@ -113,3 +113,13 @@ release updates `available_at`. Acknowledged rows remain as idempotency tombston
 This queue is durable but shares PostgreSQL's capacity with job/workflow/outbox
 traffic. Before high-volume production, benchmark concurrent reservation latency,
 database connection pressure, table/index growth and cleanup/retention strategy.
+
+
+Dead-letter operations are available on `PostgresJobQueue`:
+
+- `list_dead_letters(limit=...)` returns unresolved failures for operator review.
+- `requeue_dead_letter(job_id, reason=...)` requires an explicit 1-500 character
+  operator reason. In one transaction it resets the failed job to RETRYABLE,
+  resets its attempt counter, reactivates the original queue row and marks the
+  dead-letter record resolved. The resolved record remains as an audit trail.
+- A later failure can create a new unresolved dead-letter record for the same job.
