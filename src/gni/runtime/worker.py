@@ -51,6 +51,10 @@ class JobWorker:
         self._retry_delay = retry_delay_seconds
         self._telemetry = telemetry or RuntimeTelemetry()
 
+    @property
+    def worker_id(self) -> str:
+        return self._worker_id
+
     def process_one(self) -> WorkerOutcome | None:
         started = perf_counter()
         outcome = self._process_one()
