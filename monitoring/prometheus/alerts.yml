@@ -61,3 +61,55 @@ groups:
         annotations:
           summary: "GNI jobs failed"
           description: "At least one job was recorded with failed status in the last 10 minutes. Inspect job records and dead-letter handling; this metric is process-local."
+
+      - alert: GNIWorkflowFailuresDetected
+        expr: sum(increase(gni_workflow_runs_total{status="failed"}[10m])) > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI workflow runs failed"
+          description: "A workflow scheduler operation observed a failed workflow. Inspect workflow run and step records."
+
+      - alert: GNIOutboxRetriesIncreasing
+        expr: sum(increase(gni_outbox_events_total{action="scheduled_retry"}[10m])) > 0
+        for: 2m
+        labels:
+          severity: warning
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI outbox publication retries detected"
+          description: "Queue publication failed and an outbox event was rescheduled. Check queue/database availability."
+
+      - alert: GNIOutboxDeadLettersCreated
+        expr: sum(increase(gni_outbox_events_total{action=~"dead_lettered.*"}[10m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI outbox events entered dead-letter state"
+          description: "An outbox event could not be published permanently or referenced a missing job. Operator review is required."
+
+      - alert: GNIDeadLetterCreated
+        expr: sum(increase(gni_dead_letter_events_total{action="created"}[10m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI queue dead-letter created"
+          description: "A queue job entered the dead-letter store. Review the failure reason and replay only after approval."
+
+      - alert: GNIQueueReserveEmpty
+        expr: sum(rate(gni_queue_operations_total{action="reserve",result="empty"}[10m])) > 0
+          and sum(gni_workers_running) > 0
+          and sum(rate(gni_queue_operations_total{action="reserve",result="reserved"}[10m])) == 0
+        for: 15m
+        labels:
+          severity: info
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI workers are polling an empty queue"
+          description: "Workers have been running but no queue reservations succeeded for 15 minutes. This may be normal during quiet periods; review only if work is expected."
