@@ -126,3 +126,18 @@ def test_scheduler_marks_workflow_succeeded_after_all_steps_complete():
     complete_job(jobs, run.state_for("collect").job_id)
     run = scheduler.advance("wf-done")
     assert run.status == WorkflowStatus.SUCCEEDED
+
+
+def test_workflow_repository_lists_active_runs_for_recovery():
+    from gni.orchestration.planner import ExecutionPlan
+    from gni.persistence.workflow_memory import InMemoryWorkflowRepository
+    from gni.persistence.workflows import WorkflowRun
+
+    repository = InMemoryWorkflowRepository()
+    plan = ExecutionPlan("wf-recovery", None, (WorkflowStep("collect", "collector"),))
+    run = WorkflowRun(
+        workflow_id="wf-recovery", plan=plan,
+        steps=(__import__("gni.persistence.workflows", fromlist=["WorkflowStepState"]).WorkflowStepState("collect"),),
+    )
+    assert repository.create(run)
+    assert repository.list_active(limit=10) == (run,)
