@@ -11,8 +11,8 @@ from email.utils import parsedate_to_datetime
 from html import unescape
 from html.parser import HTMLParser
 from typing import Protocol
-import urllib.error
-import urllib.request
+from urllib import error
+from urllib import request as urllib_request
 from urllib.parse import urlsplit
 
 
@@ -73,7 +73,7 @@ class FeedReader(Protocol):
         ...
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
+class _NoRedirect(urllib_request.HTTPRedirectHandler):
     def redirect_request(self, request, file_pointer, code, message, headers, new_url):
         return None
 
@@ -213,9 +213,9 @@ class RSSFeedClient:
                 if final.scheme != "https" or final.hostname != parsed.hostname:
                     raise ValueError("Feed response URL changed unexpectedly.")
                 document = response.read(self._max_bytes + 1)
-        except urllib.error.HTTPError as exc:
+        except error.HTTPError as exc:
             raise ValueError(f"Feed request failed with HTTP status {exc.code}.") from exc
-        except urllib.error.URLError as exc:
+        except error.URLError as exc:
             raise ValueError("Feed request could not be completed.") from exc
         if len(document) > self._max_bytes:
             raise ValueError("Feed response exceeds the configured size limit.")
