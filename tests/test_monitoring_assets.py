@@ -86,3 +86,14 @@ def test_dashboard_and_alerts_cover_durable_backlog_health_metrics():
     ):
         assert metric in queries
     assert "gni_health_collection_errors_total" in expressions
+
+
+def test_prometheus_scrape_config_uses_authenticated_private_target():
+    config = yaml.safe_load(
+        (ROOT / "monitoring/prometheus/scrape-config.yml").read_text()
+    )
+    scrape = config["scrape_configs"][0]
+    assert scrape["job_name"] == "gni-runtime"
+    assert scrape["metrics_path"] == "/metrics"
+    assert scrape["bearer_token_file"]
+    assert scrape["static_configs"][0]["targets"] == ["gni-runtime.internal:9108"]
