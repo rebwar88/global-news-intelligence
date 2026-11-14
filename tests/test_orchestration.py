@@ -12,8 +12,9 @@ from gni.orchestration import (
     WorkflowStep,
     WorkflowValidationError,
 )
-from gni.persistence import InMemoryJobRepository
+from gni.persistence import InMemoryJobRepository, InMemoryOutboxRepository
 from gni.queue import InMemoryJobQueue
+from gni.runtime import OutboxPublisher
 from gni.registry import PluginManifest, PluginRegistry
 
 
@@ -126,3 +127,28 @@ def test_queue_publish_failure_leaves_job_recoverable():
         )
     assert repository.get(error.value.job_id) is not None
     assert repository.get_by_idempotency_key("feed:event:pending") is not None
+
+
+
+def test_submission_uses_atomic_outbox_and_publisher_delivers_later():
+    registry = make_registry("news-collection")
+    repository = InMemoryOutboxRepository()
+    queue = InMemoryJobQueue()
+    service = JobSubmissionService(
+        registry=registry, active_plugins={"news-collection"},
+        repository=repository, outbox_repository=repository, queue=queue,
+    )
+    result = service.submit(
+        agent_id="news-collection", payload={"source": "feed"},
+        idempotency_key="feed:event:atomic",
+    )
+    assert result.queued is True
+    assert len(repository.list_events()) == 1
+    assert queue.reserve(worker_id="before-publish", visibility_timeout_seconds=30) is None
+
+    publisher = OutboxPublisher(
+        outbox=repository, jobs=repository, queue=queue
+    )
+    assert publisher.publish_batch()[0].action == "published"
+    reservation = queue.reserve(worker_id="after-publish", visibility_timeout_seconds=30)
+    assert reservation.job.id == result.job.id
