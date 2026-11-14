@@ -142,3 +142,34 @@ def test_workflow_repository_lists_active_runs_for_recovery():
     )
     assert repository.create(run)
     assert repository.list_active(limit=10) == (run,)
+
+
+
+def test_workflow_recovery_service_advances_active_runs():
+    from dataclasses import replace
+    from gni.orchestration.planner import ExecutionPlan
+    from gni.persistence.workflow_memory import InMemoryWorkflowRepository
+    from gni.persistence.workflows import WorkflowRun, WorkflowStepState
+    from gni.runtime.workflow_recovery import WorkflowRecoveryService
+
+    repository = InMemoryWorkflowRepository()
+    plan = ExecutionPlan("wf-restart", None, (WorkflowStep("collect", "collector"),))
+    run = WorkflowRun(
+        workflow_id="wf-restart", plan=plan,
+        steps=(WorkflowStepState("collect"),),
+    )
+    assert repository.create(run)
+
+    class RecoveryScheduler:
+        def advance(self, workflow_id):
+            current = repository.get(workflow_id)
+            completed = replace(current, status=WorkflowStatus.SUCCEEDED, version=2)
+            assert repository.save(completed, expected_version=1)
+            return completed
+
+    outcome = WorkflowRecoveryService(repository, RecoveryScheduler()).recover(limit=10)
+    assert outcome.scanned == 1
+    assert outcome.advanced == 1
+    assert outcome.completed == 1
+    assert outcome.failed == 0
+    assert repository.list_active() == ()
