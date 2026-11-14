@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import pytest
+
+from gni.connectors import rss
 from gni.agents.news_collection import NewsCollectionAgent
 from gni.connectors.rss import FeedItem, FeedSource, parse_feed
 from gni.contracts.agent import AgentStatus
@@ -63,8 +66,6 @@ def test_atom_parser_supports_alternate_links():
 
 
 def test_feed_parser_rejects_dtd_and_oversized_document():
-    import pytest
-
     with pytest.raises(ValueError):
         parse_feed(b'<!DOCTYPE rss [<!ENTITY x "boom">]><rss/>')
     with pytest.raises(ValueError):
@@ -152,8 +153,6 @@ def test_agent_rejects_unbounded_or_duplicate_source_lists():
 
 
 def test_rss_http_client_fetches_allowlisted_https_feed_without_redirects(monkeypatch):
-    import gni.connectors.rss as rss
-
     body = b'<rss version="2.0"><channel><item><title>One</title><link>https://news.example.org/1</link></item></channel></rss>'
 
     class Response:
@@ -187,9 +186,6 @@ def test_rss_http_client_fetches_allowlisted_https_feed_without_redirects(monkey
 
 
 def test_rss_http_client_rejects_oversized_response(monkeypatch):
-    import pytest
-    import gni.connectors.rss as rss
-
     class Response:
         status = 200
 
