@@ -48,7 +48,7 @@ from psycopg_pool import ConnectionPool
 
 from gni.persistence.postgres import PostgresPersistence
 from gni.persistence.audit_postgres import PostgresAuditSink
-from gni.observability import MetricsRegistry, RuntimeTelemetry
+from gni.observability import MetricsRegistry, ProtectedMetricsApp, RuntimeTelemetry
 from gni.queue.postgres import PostgresJobQueue
 from gni.runtime import (
     AgentDispatcher, IsolationLimits, JobWorker,
@@ -97,9 +97,25 @@ use a hardened container/VM sandbox with a non-root identity, read-only filesyst
 restricted network egress, no host secrets and explicit syscall/resource policy.
 
 
-Mount `PrometheusMetricsApp(metrics)` at a private `/metrics` route in the selected
-WSGI service. The endpoint has no built-in authentication; restrict it to the
-monitoring network or protect it at the reverse proxy.
+Create the protected WSGI application from the *same* registry used by the worker:
+
+```python
+import os
+from gni.observability import ProtectedMetricsApp
+
+metrics_app = ProtectedMetricsApp(
+    metrics,
+    bearer_token=os.environ["GNI_METRICS_BEARER_TOKEN"],
+)
+```
+
+Mount `metrics_app` at the private `/metrics` route in the WSGI host running
+in the same process as the worker. The token must be a long random secret,
+provided through the process secret manager (never committed to Git). Bind the
+host to a private interface/firewall segment and allow Prometheus only. The
+repository currently supplies the protected WSGI application, not a standalone
+HTTP server or an application-specific router; the final mount point depends on
+the production WSGI host selected for deployment.
 
 
 ## Runtime health monitor
