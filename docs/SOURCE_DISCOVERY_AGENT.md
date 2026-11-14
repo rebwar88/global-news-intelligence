@@ -14,7 +14,7 @@ A high score is not proof of accuracy, impartiality, or trustworthiness. Popular
 
 ## Execution and safety
 
-The agent requires `sources.discover` and `sources.candidates.write`, accepts bounded region/topic filters, and caps candidate counts. Candidate discovery is injected through a trusted provider interface; job payloads cannot provide feed URLs or executable connector details. Provider exceptions are sanitized. This first implementation is a scoring and review queue foundation, not a live web crawler or an unattended source approval service.
+The agent requires `sources.discover` and `sources.candidates.write`, accepts bounded region/topic filters, and caps candidate counts. Candidate identifiers, required names, boolean verification flags, and tuple-based region/topic/evidence metadata are validated before scoring. Candidate discovery is injected through a trusted provider interface; job payloads cannot provide feed URLs or executable connector details. Provider exceptions are sanitized. This first implementation is a scoring and review queue foundation, not a live web crawler or an unattended source approval service.
 
 ## Initial coverage priorities
 

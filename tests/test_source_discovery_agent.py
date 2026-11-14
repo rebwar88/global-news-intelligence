@@ -123,3 +123,31 @@ def test_agent_rejects_invalid_limits_and_duplicate_ids():
     provider = FakeProvider((duplicate, duplicate))
     result = SourceDiscoveryAgent("source-discovery", provider).run(permissions, {})
     assert result.error_code == "duplicate_candidate_ids"
+
+
+
+def test_candidate_metadata_rejects_truthy_non_boolean_verification_flags():
+    import pytest
+
+    with pytest.raises(ValueError, match="verification flags"):
+        evaluate_candidate(strong_candidate(publisher_identity_verified="yes"))
+
+
+def test_candidate_metadata_rejects_malformed_identifiers_and_filters():
+    import pytest
+
+    with pytest.raises(ValueError, match="source_id"):
+        evaluate_candidate(strong_candidate(source_id="Publisher One"))
+    with pytest.raises(ValueError, match="regions"):
+        evaluate_candidate(strong_candidate(regions=["Iraq"]))
+
+
+def test_agent_reports_malformed_provider_metadata_without_leaking_details():
+    malformed = strong_candidate(publisher_identity_verified=1)
+    agent = SourceDiscoveryAgent("source-discovery", FakeProvider((malformed,)))
+    result = agent.run(
+        context("sources.discover", "sources.candidates.write"),
+        {"regions": [], "topics": []},
+    )
+    assert result.status == AgentStatus.FAILED
+    assert result.error_code == "invalid_candidate_metadata"
