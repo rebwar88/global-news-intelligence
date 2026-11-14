@@ -4,7 +4,7 @@ A modular, plugin-based platform for multilingual news discovery, story intellig
 
 ## Project status
 
-Architecture and foundation phase. The first built-in News Collection Agent is implemented and CI-tested, but remains disabled for production until approved sources and durable article storage are configured. No unattended news collection is running yet.
+Architecture and foundation phase. The News Collection Agent and Source Discovery Agent have initial implementations and tests. Both remain disabled for production: source approval and durable article/candidate storage are not configured, and live discovery connectors are not connected. No unattended collection is running.
 
 ## Architecture principles
 
@@ -40,7 +40,7 @@ This is still a foundation, not a production deployment. No production database,
 
 ## Operational documentation
 
-- [News Collection Agent](docs/NEWS_COLLECTION_AGENT.md)
+- [News Collection Agent](docs/NEWS_COLLECTION_AGENT.md)\n- [Source Discovery Agent](docs/SOURCE_DISCOVERY_AGENT.md)
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Execution runtime](docs/EXECUTION_RUNTIME.md)
