@@ -29,3 +29,57 @@ No service manager, distributed lease renewal, in-flight cancellation, hardened 
 ## Workflow scheduling boundary
 
 The scheduler is invoked by an external supervisor or scheduled workflow. It is safe to call advance() repeatedly: job submission uses deterministic workflow-step idempotency keys, and workflow-run writes use version compare-and-set. The current in-memory repositories do not provide cross-process guarantees. Production must use durable workflow/job repositories and a durable idempotent queue. A stale workflow in RUNNING state should be scanned and advanced by the supervisor; no background daemon is included in this phase.
+
+
+## Runtime composition example
+
+The following is a composition pattern for a Linux worker process. The application
+must create and migrate the database before starting workers, and must register only
+approved agent implementations:
+
+```python
+import threading
+from psycopg_pool import ConnectionPool
+
+from gni.persistence.postgres import PostgresPersistence
+from gni.queue.postgres import PostgresJobQueue
+from gni.runtime import (
+    AgentDispatcher, IsolationLimits, JobWorker,
+    ProcessIsolatedAgentRunner, WorkerSupervisor,
+)
+
+pool = ConnectionPool(conninfo=DATABASE_URL, min_size=2, max_size=10)
+persistence = PostgresPersistence(pool)
+queue = PostgresJobQueue(pool)
+dispatcher = AgentDispatcher(
+    registry=registry,
+    agents=trusted_agent_implementations,
+    active_plugins=approved_agent_ids,
+    granted_permissions=approved_permission_grants,
+    execution_runner=ProcessIsolatedAgentRunner(
+        IsolationLimits(timeout_seconds=240, memory_bytes=2 * 1024**3, cpu_seconds=230)
+    ),
+)
+worker = JobWorker(
+    worker_id="worker-01",
+    queue=queue,
+    repository=persistence,
+    dispatcher=dispatcher,
+    visibility_timeout_seconds=300,
+    retry_delay_seconds=30,
+)
+stop = threading.Event()
+stats = WorkerSupervisor(worker, poll_interval_seconds=1).run(stop)
+```
+
+A service manager/container orchestrator should own the process and set the stop
+event during shutdown. Run a separate recovery loop that calls
+`WorkflowRecoveryService(workflow_repository, scheduler).recover()` and run the
+outbox publisher loop as separate supervised services. Do not start these loops
+inside a GitHub Actions step expecting them to remain alive after the runner exits.
+
+The process-isolated runner currently requires POSIX (Linux) and uses `fork`.
+It is a resource/crash boundary only, not a security sandbox: filesystem, network
+and inherited credentials are still reachable. For hostile or third-party code,
+use a hardened container/VM sandbox with a non-root identity, read-only filesystem,
+restricted network egress, no host secrets and explicit syscall/resource policy.
