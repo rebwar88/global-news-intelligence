@@ -5,6 +5,9 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
+
 from gni.contracts.jobs import Job, JobStatus
 from gni.orchestration.planner import ExecutionPlan, WorkflowStep
 from gni.persistence.base import JobRecord
@@ -25,8 +28,8 @@ class PostgresPersistence:
     @staticmethod
     def _job_values(record: JobRecord, key: str) -> tuple[Any, ...]:
         j = record.job
-        return (j.id, j.agent_id, j.status.value, j.payload, record.output,
-                record.error, j.attempt, j.max_attempts, j.trace_id,
+        return (j.id, j.agent_id, j.status.value, Jsonb(j.payload), Jsonb(record.output),
+                Jsonb(record.error), j.attempt, j.max_attempts, j.trace_id,
                 j.contract_version, key, j.created_at)
 
     @staticmethod
@@ -93,20 +96,6 @@ class PostgresPersistence:
             lease_token=str(row["lease_token"]) if row["lease_token"] else None,
             locked_until=row["locked_until"], last_error_code=row["last_error_code"],
         )
-
-    def create(self, record: JobRecord, *, idempotency_key: str) -> bool:
-        if not idempotency_key or not idempotency_key.strip():
-            raise ValueError("idempotency_key must not be empty.")
-        with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(
-                """INSERT INTO jobs
-                (id,agent_id,status,payload,output,error,attempt,max_attempts,trace_id,
-                 contract_version,idempotency_key,created_at)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                ON CONFLICT (idempotency_key) DO NOTHING""",
-                self._job_values(record, idempotency_key),
-            )
-            return cur.rowcount == 1
 
     def get(self, job_id: str) -> JobRecord | None:
         with self._pool.connection() as conn, conn.cursor() as cur:
@@ -182,7 +171,7 @@ class PostgresPersistence:
                 (workflow_id,plan,steps,status,version,created_at,updated_at)
                 VALUES (%s,%s,%s,%s,%s,%s,%s)
                 ON CONFLICT (workflow_id) DO NOTHING""",
-                (run.workflow_id, plan, steps, run.status.value, run.version,
+                (run.workflow_id, Jsonb(plan), Jsonb(steps), run.status.value, run.version,
                  run.created_at, run.updated_at),
             )
             return cur.rowcount == 1
@@ -200,7 +189,7 @@ class PostgresPersistence:
             cur.execute(
                 """UPDATE workflow_runs SET plan=%s,steps=%s,status=%s,version=%s,updated_at=%s
                 WHERE workflow_id=%s AND version=%s""",
-                (plan, steps, run.status.value, run.version, run.updated_at,
+                (Jsonb(plan), Jsonb(steps), run.status.value, run.version, run.updated_at,
                  run.workflow_id, expected_version),
             )
             return cur.rowcount == 1
@@ -252,3 +241,19 @@ class PostgresPersistence:
                 (status.value, error, available_at, event_uuid, lease_uuid),
             )
             return cur.rowcount == 1
+
+
+class PostgresWorkflowRepository:
+    """WorkflowRepository view over PostgresPersistence's shared connection pool."""
+
+    def __init__(self, persistence: PostgresPersistence) -> None:
+        self._persistence = persistence
+
+    def create(self, run: WorkflowRun) -> bool:
+        return self._persistence.create_workflow(run)
+
+    def get(self, workflow_id: str) -> WorkflowRun | None:
+        return self._persistence.get_workflow(workflow_id)
+
+    def save(self, run: WorkflowRun, *, expected_version: int) -> bool:
+        return self._persistence.save_workflow(run, expected_version=expected_version)
