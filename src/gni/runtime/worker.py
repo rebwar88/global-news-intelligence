@@ -60,7 +60,13 @@ class JobWorker:
             return WorkerOutcome(job_id, None, "discarded_missing_record")
 
         job = record.job
-        if job.status in {JobStatus.SUCCEEDED, JobStatus.FAILED, JobStatus.CANCELLED}:
+        if job.status == JobStatus.FAILED:
+            self._queue.dead_letter(
+                reservation,
+                error_code=(record.error.get("error_code") or "job_failed"),
+            )
+            return WorkerOutcome(job_id, job.status, "dead_lettered_terminal")
+        if job.status in {JobStatus.SUCCEEDED, JobStatus.CANCELLED}:
             self._queue.acknowledge(reservation)
             return WorkerOutcome(job_id, job.status, "acknowledged_terminal")
 
@@ -76,7 +82,7 @@ class JobWorker:
                 return WorkerOutcome(job_id, job.status, "state_conflict")
             job = recovered
             if job.status == JobStatus.FAILED:
-                self._queue.acknowledge(reservation)
+                self._queue.dead_letter(reservation, error_code="attempts_exhausted")
                 return WorkerOutcome(job_id, job.status, "failed_after_interrupted_attempt")
 
         running = job.start()
@@ -115,5 +121,9 @@ class JobWorker:
 
         # Result is durable before acknowledgement. If ack fails, redelivery sees
         # the terminal record and will acknowledge without running the agent again.
+        if final_job.status == JobStatus.FAILED:
+            error_code = final_record.error.get("error_code") or "job_failed"
+            self._queue.dead_letter(reservation, error_code=error_code)
+            return WorkerOutcome(job_id, final_job.status, "dead_lettered")
         self._queue.acknowledge(reservation)
         return WorkerOutcome(job_id, final_job.status, "completed")
