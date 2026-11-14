@@ -17,4 +17,8 @@ The platform baseline is exactly 12 agents: one orchestrator and eleven speciali
 | fact-checking | Fact-Checking Agent | Evaluate claims against evidence and citations |
 | delivery-sync | Delivery & Sync Agent | Secure, idempotent delivery to PayamNewsAggregator |
 
-## Implementation status\n\nThe News Collection Agent now has a tested RSS 2.0/Atom parser, an allowlisted HTTPS feed connector, bounded fetch limits, permission checks, and deterministic article IDs. Its manifest remains disabled until approved sources and durable storage are configured. Other specialist manifests remain metadata-only.\n\nTrending status is not proof of truth. AI-only media checks are not conclusive; high-risk cases require human review.
+## Implementation status
+
+The News Collection Agent now has a tested RSS 2.0/Atom parser, an allowlisted HTTPS feed connector, bounded fetch limits, permission checks, and deterministic article IDs. Its manifest remains disabled until approved sources and durable storage are configured. Other specialist manifests remain metadata-only.
+
+Trending status is not proof of truth. AI-only media checks are not conclusive; high-risk cases require human review.
