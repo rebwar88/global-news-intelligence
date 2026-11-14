@@ -195,7 +195,7 @@ class RSSFeedClient:
         )
 
     def fetch(self, source: FeedSource) -> tuple[FeedItem, ...]:
-        parsed = urlsplit(source.feed_url)
+        parsed = urllib.parse.urlsplit(source.feed_url)
         if parsed.hostname is None or parsed.hostname.lower() not in {
             host.lower() for host in source.allowed_hosts
         }:
