@@ -60,3 +60,28 @@ def test_prometheus_alert_rules_are_valid_and_use_emitted_metrics():
     ):
         assert metric in metrics_source
         assert metric in expressions
+
+
+def test_dashboard_and_alerts_cover_durable_backlog_health_metrics():
+    dashboard = json.loads(
+        (ROOT / "monitoring/grafana/global-news-intelligence-dashboard.json").read_text()
+    )
+    queries = " ".join(
+        target["expr"]
+        for panel in dashboard["panels"]
+        for target in panel.get("targets", [])
+    )
+    rules = yaml.safe_load((ROOT / "monitoring/prometheus/alerts.yml").read_text())
+    expressions = " ".join(
+        rule["expr"] for group in rules["groups"] for rule in group["rules"]
+        if "alert" in rule
+    )
+    for metric in (
+        "gni_queue_pending_messages", "gni_queue_processing_messages",
+        "gni_queue_expired_leases", "gni_queue_oldest_pending_seconds",
+        "gni_outbox_pending_events", "gni_outbox_processing_events",
+        "gni_outbox_expired_leases", "gni_outbox_oldest_pending_seconds",
+        "gni_workflows_running", "gni_dead_letters_open",
+    ):
+        assert metric in queries
+        assert metric in expressions
