@@ -4,13 +4,13 @@ A modular, plugin-based platform for multilingual news discovery, story intellig
 
 ## Project status
 
-Architecture and foundation phase. No production agents are enabled yet.
+Architecture and foundation phase. The first built-in News Collection Agent is implemented and CI-tested, but remains disabled for production until approved sources and durable article storage are configured. No unattended news collection is running yet.
 
 ## Architecture principles
 
 - 12 agents: one Main Orchestrator and eleven specialist agents.
 - Plugin-based Agent, Skill, Connector, Tool, Workflow, and Model registries.
-- GitHub Actions scheduled workers for Phase 1; portable runtime for future VPS migration.
+- GitHub Actions is the initial bounded execution environment. Current workflows run CI and operational reports; unattended collection waits for approved feeds and durable storage.
 - PostgreSQL as the planned persistent database; queue adapter must use durable external storage.
 - Cloudflare R2 as the initial media object-storage provider behind a provider-neutral adapter.
 - Media metadata and storage references live in the database; binary objects live in object storage.
@@ -39,6 +39,8 @@ The repository now includes plugin registries, agent/job contracts, workflow pla
 This is still a foundation, not a production deployment. No production database, Prometheus server, Grafana dashboards, alert manager, hardened untrusted-code sandbox or model-provider cost collector has been deployed. Production activation requires infrastructure selection, migrations, secrets, access controls, backups, retention policy, load testing and operational runbooks.
 
 ## Operational documentation
+
+- [News Collection Agent](docs/NEWS_COLLECTION_AGENT.md)
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Execution runtime](docs/EXECUTION_RUNTIME.md)
