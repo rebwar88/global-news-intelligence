@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 );
 
 CREATE TABLE IF NOT EXISTS jobs (
-    id UUID PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     agent_id VARCHAR(63) NOT NULL,
     status VARCHAR(16) NOT NULL CHECK (
         status IN ('queued', 'running', 'succeeded', 'retryable', 'failed', 'cancelled')
@@ -18,9 +18,9 @@ CREATE TABLE IF NOT EXISTS jobs (
     error JSONB NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(error) = 'object'),
     attempt INTEGER NOT NULL DEFAULT 0 CHECK (attempt >= 0),
     max_attempts INTEGER NOT NULL DEFAULT 3 CHECK (max_attempts >= 1),
-    trace_id UUID NOT NULL,
+    trace_id TEXT NOT NULL,
     contract_version VARCHAR(32) NOT NULL,
-    idempotency_key VARCHAR(255) NOT NULL UNIQUE,
+    idempotency_key TEXT NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CHECK (attempt <= max_attempts)
@@ -32,7 +32,7 @@ CREATE INDEX IF NOT EXISTS jobs_agent_status_idx
     ON jobs (agent_id, status, created_at);
 
 CREATE TABLE IF NOT EXISTS workflow_runs (
-    workflow_id UUID PRIMARY KEY,
+    workflow_id TEXT PRIMARY KEY,
     plan JSONB NOT NULL CHECK (jsonb_typeof(plan) = 'object'),
     steps JSONB NOT NULL CHECK (jsonb_typeof(steps) = 'array'),
     status VARCHAR(16) NOT NULL CHECK (
@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS workflow_runs_status_updated_idx
 CREATE TABLE IF NOT EXISTS outbox_events (
     id UUID PRIMARY KEY,
     event_type VARCHAR(100) NOT NULL,
-    aggregate_id UUID NOT NULL REFERENCES jobs(id) ON DELETE RESTRICT,
+    aggregate_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE RESTRICT,
     idempotency_key VARCHAR(255) NOT NULL UNIQUE,
     status VARCHAR(16) NOT NULL DEFAULT 'pending' CHECK (
         status IN ('pending', 'processing', 'published', 'dead')
