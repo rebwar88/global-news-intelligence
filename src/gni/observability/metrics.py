@@ -134,7 +134,7 @@ class MetricsRegistry:
         lines: list[str] = []
         for name in sorted(families):
             family = families[name]
-            help_text = family.help.replace("\\\\", "\\\\\\\\").replace("\\n", " ")
+            help_text = family.help.replace("\\", "\\\\").replace("\n", " ")
             lines.append(f"# HELP {name} {help_text}")
             lines.append(f"# TYPE {name} {family.kind}")
             for labels, value in sorted(family.samples.items()):
