@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from gni.contracts.agent import AgentContext, AgentResult, AgentStatus
-from gni.connectors.rss import FeedReader, FeedSource
+from gni.connectors.rss import FeedReader, FeedSource, is_https_url
 
 
 @dataclass(slots=True)
@@ -68,7 +68,7 @@ class NewsCollectionAgent:
 
             accepted = 0
             for item in items[: self.max_items_per_source]:
-                if not item.title.strip() or not item.url.startswith("https://"):
+                if not item.title.strip() or not is_https_url(item.url) or len(item.url) > 2048:
                     continue
                 stable_key = item.external_id.strip() or item.url
                 article_id = hashlib.sha256(
@@ -80,7 +80,7 @@ class NewsCollectionAgent:
                         "source_id": source.source_id,
                         "source_name": source.name,
                         "title": item.title[:500],
-                        "url": item.url[:2048],
+                        "url": item.url,
                         "summary": item.summary[:4000],
                         "external_id": stable_key[:2048],
                         "published_at": item.published_at,
