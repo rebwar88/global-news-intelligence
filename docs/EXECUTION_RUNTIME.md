@@ -32,3 +32,14 @@ The dispatcher is synchronous and does not execute untrusted plugin code in an i
 - If queue publication fails, the service raises `SubmissionPendingError` with the persisted job ID. The record is retained so a later retry can publish it; callers must not treat this as queued.
 - This first Orchestrator increment plans workflows but does not yet persist workflow-run state or automatically release dependent steps after predecessor completion. Those require a durable workflow-state/scheduler adapter.
 - The current persist-then-enqueue sequence is not an atomic transaction. Production persistence/queue integration should use a transactional outbox (or an equivalent recoverable publisher) to close the crash window between database commit and queue publication. The in-memory adapters remain development/test only.
+
+
+## Workflow state and scheduling
+
+- WorkflowRepository stores a versioned workflow run and its per-step state. Updates use compare-and-set on the run version so competing schedulers cannot silently overwrite newer state.
+- WorkflowScheduler.start() validates and persists the plan, then submits steps with no dependencies. advance() reconciles each submitted step against the authoritative job repository and submits a dependent step only after every dependency succeeds.
+- Independent branches can continue when another branch fails. Descendants of a failed or blocked step become BLOCKED; the workflow becomes terminal only after all steps reach a terminal state.
+- Queue-publication failures are retained as SUBMISSION_PENDING; a later scheduler tick retries publication with the same deterministic idempotency key.
+- Agent jobs receive a stable envelope containing workflow_id, workflow_step_id, and the original step input under input.
+- This is a scheduler core, not a continuously running service. A durable scheduler trigger/supervisor must call advance() periodically and recover stale runs after process restarts.
+- Workflow-run and job repositories must be durable and share consistent atomic/CAS guarantees in production. In-memory adapters are tests/local development only.
