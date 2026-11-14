@@ -15,3 +15,11 @@ A database transaction plus a transactional outbox may be appropriate when job c
 ## Deliberately not selected
 
 PostgreSQL is a candidate, not a confirmed decision. Redis, managed queues, and other durable queue services remain options. Do not treat this in-memory adapter as production persistence or rely on GitHub runner files/artifacts for durable state.
+
+
+## Workflow-run persistence
+
+- WorkflowRepository stores the execution plan, workflow status, per-step status/job reference, timestamps and a monotonically increasing version.
+- save() must atomically compare the expected version and persist exactly one version increment. This protects against stale scheduler updates.
+- Workflow state is separate from job state: the job repository remains authoritative for agent execution outcomes; workflow state records dependency progress and orchestration status.
+- The in-memory workflow adapter is process-local and non-durable. A production adapter must persist workflow runs across separate GitHub Actions executions and support concurrent scheduler invocations safely.
