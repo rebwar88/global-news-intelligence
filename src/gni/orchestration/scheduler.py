@@ -1,14 +1,13 @@
 """Dependency-aware workflow scheduler over provider-neutral job contracts."""
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import replace
 from datetime import UTC, datetime
-from collections import Counter
 from time import perf_counter
 
-from gni.observability.telemetry import RuntimeTelemetry
-
 from gni.contracts.jobs import JobStatus
+from gni.observability.telemetry import RuntimeTelemetry
 from gni.orchestration.planner import Orchestrator, WorkflowPlan
 from gni.orchestration.submission import (
     JobSubmissionError,
