@@ -20,11 +20,13 @@ class AgentDispatcher:
         agents: dict[str, Agent],
         active_plugins: frozenset[str],
         granted_permissions: dict[str, frozenset[str]] | None = None,
+        execution_runner=None,
     ) -> None:
         self._registry = registry
         self._agents = dict(agents)
         self._active_plugins = active_plugins
         self._grants = granted_permissions or {}
+        self._execution_runner = execution_runner
 
     def execute(self, job: Job) -> tuple[Job, dict[str, object]]:
         """Convenience entry point for direct, non-worker execution."""
@@ -58,7 +60,11 @@ class AgentDispatcher:
             permissions=frozenset(granted),
         )
         try:
-            result = agent.run(context, running.payload)
+            result = (
+                self._execution_runner.run(agent, context, running.payload)
+                if self._execution_runner is not None
+                else agent.run(context, running.payload)
+            )
             if not isinstance(result.output, dict):
                 raise TypeError("Agent output must be a mapping.")
             json.dumps(result.output, allow_nan=False)
