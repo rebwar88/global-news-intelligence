@@ -8,8 +8,8 @@ from uuid import UUID
 from psycopg.rows import dict_row
 
 from gni.contracts.jobs import Job, JobStatus
-from gni.queue.base import QueueReservation
 from gni.observability.telemetry import RuntimeTelemetry
+from gni.queue.base import QueueReservation
 
 
 class PostgresJobQueue:
