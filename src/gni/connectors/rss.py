@@ -103,6 +103,8 @@ def normalize_published(value: str | None) -> str | None:
 
 
 def parse_feed(document: bytes, *, max_items: int = 100) -> tuple[FeedItem, ...]:
+    if max_items < 1:
+        raise ValueError("max_items must be positive.")
     if len(document) > 2_000_000:
         raise ValueError("Feed document exceeds the configured size limit.")
     upper = document[:4096].upper()
