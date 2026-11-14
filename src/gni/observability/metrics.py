@@ -1,6 +1,7 @@
 """Dependency-free, thread-safe Prometheus metrics with bounded label cardinality."""
 from __future__ import annotations
 
+import math
 import re
 import threading
 from dataclasses import dataclass, field
@@ -32,8 +33,8 @@ class MetricsRegistry:
     def _labels(labels: dict[str, str] | None) -> tuple[tuple[str, str], ...]:
         normalized = []
         for key, value in (labels or {}).items():
-            if not _LABEL.fullmatch(key):
-                raise ValueError(f"Invalid metric label name: {key!r}")
+            if not _LABEL.fullmatch(key) or key in {"le", "__name__"}:
+                raise ValueError(f"Invalid or reserved metric label name: {key!r}")
             text = str(value)
             if len(text) > 128:
                 text = text[:128]
@@ -65,8 +66,8 @@ class MetricsRegistry:
         self, name: str, value: float = 1, *, labels: dict[str, str] | None = None,
         help_text: str = "",
     ) -> None:
-        if value < 0:
-            raise ValueError("Counters cannot be incremented by a negative value.")
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("Counter increments must be finite and non-negative.")
         key = self._labels(labels)
         with self._lock:
             family = self._family(name, "counter", help_text)
@@ -77,6 +78,8 @@ class MetricsRegistry:
         self, name: str, value: float, *, labels: dict[str, str] | None = None,
         help_text: str = "",
     ) -> None:
+        if not math.isfinite(value):
+            raise ValueError("Gauge values must be finite.")
         key = self._labels(labels)
         with self._lock:
             family = self._family(name, "gauge", help_text)
@@ -87,6 +90,8 @@ class MetricsRegistry:
         self, name: str, delta: float, *, labels: dict[str, str] | None = None,
         help_text: str = "",
     ) -> None:
+        if not math.isfinite(delta):
+            raise ValueError("Gauge adjustments must be finite.")
         key = self._labels(labels)
         with self._lock:
             family = self._family(name, "gauge", help_text)
@@ -97,8 +102,8 @@ class MetricsRegistry:
         self, name: str, value: float, *, labels: dict[str, str] | None = None,
         help_text: str = "",
     ) -> None:
-        if value < 0:
-            raise ValueError("Histogram observations cannot be negative.")
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("Histogram observations must be finite and non-negative.")
         key = self._labels(labels)
         with self._lock:
             family = self._family(name, "histogram", help_text)
@@ -129,7 +134,8 @@ class MetricsRegistry:
         lines: list[str] = []
         for name in sorted(families):
             family = families[name]
-            lines.append(f"# HELP {name} {family.help.replace(chr(10), ' ')}")
+            help_text = family.help.replace("\\\\", "\\\\\\\\").replace("\\n", " ")
+            lines.append(f"# HELP {name} {help_text}")
             lines.append(f"# TYPE {name} {family.kind}")
             for labels, value in sorted(family.samples.items()):
                 suffix = self._format_labels(labels)
