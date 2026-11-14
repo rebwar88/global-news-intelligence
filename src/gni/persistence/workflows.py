@@ -1,12 +1,13 @@
 """Provider-neutral workflow-run persistence contracts."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
-from gni.orchestration.planner import ExecutionPlan
+if TYPE_CHECKING:
+    from gni.orchestration.planner import ExecutionPlan
 
 
 class WorkflowStatus(StrEnum):
@@ -48,8 +49,8 @@ class WorkflowRun:
     steps: tuple[WorkflowStepState, ...]
     status: WorkflowStatus = WorkflowStatus.RUNNING
     version: int = 1
-    created_at: datetime = datetime.min.replace(tzinfo=UTC)
-    updated_at: datetime = datetime.min.replace(tzinfo=UTC)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
         expected = {step.step_id for step in self.plan.ordered_steps}
