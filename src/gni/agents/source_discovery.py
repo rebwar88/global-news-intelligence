@@ -6,8 +6,8 @@ from dataclasses import dataclass, field
 from typing import Protocol
 from urllib.parse import urlsplit
 
-from gni.contracts.agent import AgentContext, AgentResult, AgentStatus
 from gni.connectors.rss import is_https_url
+from gni.contracts.agent import AgentContext, AgentResult, AgentStatus
 
 
 @dataclass(frozen=True, slots=True)
