@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from time import perf_counter
 
+from gni.observability.telemetry import RuntimeTelemetry
 from gni.persistence.base import JobRepository
 from gni.persistence.outbox import OutboxRepository
-from gni.observability.telemetry import RuntimeTelemetry
 from gni.queue.base import JobQueue
 
 
