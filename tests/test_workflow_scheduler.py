@@ -1,7 +1,8 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from gni.contracts.jobs import JobStatus
 from gni.orchestration import (
+    ExecutionPlan,
     JobSubmissionService,
     Orchestrator,
     WorkflowPlan,
@@ -10,10 +11,14 @@ from gni.orchestration import (
 from gni.orchestration.scheduler import WorkflowScheduler
 from gni.persistence import InMemoryJobRepository, InMemoryWorkflowRepository, JobRecord
 from gni.persistence.workflows import (
-    WorkflowRun, WorkflowStatus, WorkflowStepState, WorkflowStepStatus,
+    WorkflowRun,
+    WorkflowStatus,
+    WorkflowStepState,
+    WorkflowStepStatus,
 )
 from gni.queue import InMemoryJobQueue
 from gni.registry import PluginManifest, PluginRegistry
+from gni.runtime.workflow_recovery import WorkflowRecoveryService
 
 
 def make_registry(*agent_ids: str) -> PluginRegistry:
@@ -131,7 +136,6 @@ def test_scheduler_marks_workflow_succeeded_after_all_steps_complete():
 
 
 def test_workflow_repository_lists_active_runs_for_recovery():
-    from gni.orchestration.planner import ExecutionPlan
     from gni.persistence.workflow_memory import InMemoryWorkflowRepository
 
     repository = InMemoryWorkflowRepository()
@@ -146,11 +150,7 @@ def test_workflow_repository_lists_active_runs_for_recovery():
 
 
 def test_workflow_recovery_service_advances_active_runs():
-    from dataclasses import replace
-    from gni.orchestration.planner import ExecutionPlan
     from gni.persistence.workflow_memory import InMemoryWorkflowRepository
-    from gni.persistence.workflows import WorkflowRun, WorkflowStepState
-    from gni.runtime.workflow_recovery import WorkflowRecoveryService
 
     repository = InMemoryWorkflowRepository()
     plan = ExecutionPlan(workflow_id="wf-restart", ordered_steps=(WorkflowStep("collect", "collector"),))
