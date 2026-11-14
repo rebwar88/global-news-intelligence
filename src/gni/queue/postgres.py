@@ -127,13 +127,63 @@ class PostgresJobQueue:
                     RETURNING id,job_id,idempotency_key,created_at
                 )
                 INSERT INTO dead_letter_messages
-                (job_id,queue_message_id,idempotency_key,error_code,original_created_at)
-                SELECT job_id,id,idempotency_key,%s,created_at FROM moved
-                ON CONFLICT (job_id) DO NOTHING""",
+                (job_id,queue_message_id,idempotency_key,error_code,attempt_count,original_created_at)
+                SELECT moved.job_id,moved.id,moved.idempotency_key,%s,j.attempt,moved.created_at
+                FROM moved JOIN jobs j ON j.id=moved.job_id
+                ON CONFLICT (job_id) WHERE resolved_at IS NULL DO NOTHING""",
                 (reservation.job.id, token, error_code),
             )
             if cur.rowcount != 1:
                 raise ValueError("Unknown, stale, or already dead-lettered reservation.")
+
+
+    def list_dead_letters(self, *, limit: int = 100) -> tuple[dict[str, Any], ...]:
+        if limit < 1 or limit > 1000:
+            raise ValueError("limit must be between 1 and 1000.")
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(
+                """SELECT id,job_id,error_code,attempt_count,failed_at,
+                queue_message_id,idempotency_key FROM dead_letter_messages
+                WHERE resolved_at IS NULL ORDER BY failed_at ASC LIMIT %s""",
+                (limit,),
+            )
+            return tuple(cur.fetchall())
+
+    def requeue_dead_letter(self, job_id: str, *, reason: str) -> bool:
+        if not reason or not reason.strip() or len(reason) > 500:
+            raise ValueError("A replay reason of 1-500 characters is required.")
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                """SELECT id FROM dead_letter_messages
+                WHERE job_id=%s AND resolved_at IS NULL FOR UPDATE""",
+                (job_id,),
+            )
+            dead_letter = cur.fetchone()
+            if dead_letter is None:
+                return False
+            cur.execute(
+                """UPDATE jobs SET status='retryable',attempt=0,error='{}'::jsonb,
+                updated_at=NOW() WHERE id=%s AND status='failed'""",
+                (job_id,),
+            )
+            if cur.rowcount != 1:
+                raise ValueError("Only a failed job can be manually replayed.")
+            cur.execute(
+                """UPDATE queue_messages SET status='pending',worker_id=NULL,
+                reservation_token=NULL,locked_until=NULL,available_at=NOW(),updated_at=NOW()
+                WHERE job_id=%s AND status='acknowledged'""",
+                (job_id,),
+            )
+            if cur.rowcount != 1:
+                raise RuntimeError("The original queue message is unavailable for replay.")
+            cur.execute(
+                """UPDATE dead_letter_messages SET resolved_at=NOW(),resolution=%s
+                WHERE id=%s AND resolved_at IS NULL""",
+                (reason.strip(), dead_letter[0]),
+            )
+            if cur.rowcount != 1:
+                raise RuntimeError("Dead-letter record changed during replay.")
+            return True
 
     @staticmethod
     def _token(value: str) -> UUID:
