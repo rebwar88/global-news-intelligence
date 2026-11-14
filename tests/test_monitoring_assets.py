@@ -27,6 +27,12 @@ def test_grafana_dashboard_is_valid_and_uses_emitted_metrics():
         "gni_worker_polls_total",
         "gni_audit_write_failures_total",
         "gni_metrics_write_failures_total",
+        "gni_workflow_runs_total",
+        "gni_workflow_steps_observed_total",
+        "gni_outbox_events_total",
+        "gni_queue_operations_total",
+        "gni_dead_letter_events_total",
+        "gni_outbox_publish_duration_seconds",
     ):
         assert metric in metrics_source
         assert any(metric in query for query in queries)
@@ -49,6 +55,9 @@ def test_prometheus_alert_rules_are_valid_and_use_emitted_metrics():
         "gni_metrics_write_failures_total",
         "gni_job_processing_duration_seconds",
         "gni_jobs_processed_total",
+        "gni_workflow_runs_total",
+        "gni_outbox_events_total",
+        "gni_dead_letter_events_total",
     ):
         assert metric in metrics_source
         assert metric in expressions
