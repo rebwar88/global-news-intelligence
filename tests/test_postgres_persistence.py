@@ -239,3 +239,25 @@ def test_postgres_audit_sink_persists_and_filters_traceable_events(persistence):
     assert len(found) == 1
     assert found[0].event_id == event.event_id
     assert found[0].metadata["api_token"] == "[redacted]"
+
+
+def test_postgres_runtime_health_collector_reports_durable_backlogs(persistence):
+    from gni.observability import MetricsRegistry, PostgresRuntimeHealthCollector, RuntimeTelemetry
+
+    metrics = MetricsRegistry()
+    telemetry = RuntimeTelemetry(metrics=metrics)
+    collector = PostgresRuntimeHealthCollector(persistence._pool, telemetry)
+
+    queued_job = Job(agent_id="collector", payload={"health": "queue"})
+    assert persistence.create(JobRecord(queued_job), idempotency_key=f"health:{queued_job.id}")
+    queue = PostgresJobQueue(persistence._pool)
+    assert queue.enqueue(queued_job, idempotency_key=f"health-queue:{queued_job.id}")
+
+    snapshot = collector.collect()
+    assert snapshot.queue_pending == 1
+    assert snapshot.outbox_pending == 1
+    assert snapshot.workflows_running == 0
+    assert snapshot.dead_letters_open == 0
+    rendered = metrics.render()
+    assert "gni_queue_pending_messages 1" in rendered
+    assert "gni_outbox_pending_events 1" in rendered
