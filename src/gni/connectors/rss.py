@@ -4,7 +4,6 @@ from __future__ import annotations
 import ipaddress
 import socket
 import ssl
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -14,6 +13,7 @@ from typing import Protocol
 from urllib import error
 from urllib import request as urllib_request
 from urllib.parse import urlsplit
+import xml.etree.ElementTree as ET
 
 
 _ATOM = "{http://www.w3.org/2005/Atom}"
