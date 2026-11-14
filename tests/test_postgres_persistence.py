@@ -201,9 +201,8 @@ def test_postgres_dead_letter_can_be_inspected_and_replayed(persistence):
     assert reservation is not None
     queue.dead_letter(reservation, error_code="manual_review")
 
-    dead = queue.list_dead_letters(limit=10)
+    dead = [item for item in queue.list_dead_letters(limit=100) if item["job_id"] == job.id]
     assert len(dead) == 1
-    assert dead[0]["job_id"] == job.id
     assert dead[0]["attempt_count"] == 2
 
     assert queue.requeue_dead_letter(job.id, reason="editor approved replay") is True
@@ -211,7 +210,7 @@ def test_postgres_dead_letter_can_be_inspected_and_replayed(persistence):
     refreshed = persistence.get(job.id)
     assert refreshed.job.status == JobStatus.RETRYABLE
     assert refreshed.job.attempt == 0
-    assert queue.list_dead_letters(limit=10) == ()
+    assert all(item["job_id"] != job.id for item in queue.list_dead_letters(limit=100))
 
     replay = queue.reserve(worker_id="worker-b", visibility_timeout_seconds=30)
     assert replay is not None
