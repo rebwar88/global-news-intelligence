@@ -32,6 +32,7 @@ def persistence():
     for migration_path in (
         "migrations/postgresql/001_initial_persistence.sql",
         "migrations/postgresql/002_job_queue.sql",
+        "migrations/postgresql/003_dead_letter_messages.sql",
     ):
         migration = Path(migration_path).read_text()
         with pool.connection() as conn:
@@ -167,3 +168,20 @@ def test_postgres_queue_recovers_expired_visibility_lease(persistence):
     with pytest.raises(ValueError, match="stale"):
         queue.release(first)
     queue.acknowledge(second)
+
+
+
+def test_postgres_queue_moves_failed_job_to_dead_letter(persistence):
+    job = Job(agent_id="collector", payload={"feed": "bad"})
+    assert persistence.create(JobRecord(job), idempotency_key=f"job:{job.id}")
+    queue = PostgresJobQueue(persistence._pool)
+    assert queue.enqueue(job, idempotency_key=f"queue:{job.id}")
+    reservation = queue.reserve(worker_id="worker-a", visibility_timeout_seconds=30)
+    assert reservation is not None
+    queue.dead_letter(reservation, error_code="permanent_failure")
+    with persistence._pool.connection() as conn:
+        row = conn.execute(
+            "SELECT error_code FROM dead_letter_messages WHERE job_id=%s",
+            (job.id,),
+        ).fetchone()
+    assert row[0] == "permanent_failure"
