@@ -12,6 +12,7 @@ from gni.queue import InMemoryJobQueue
 from gni.registry import PluginManifest, PluginRegistry
 from gni.runtime import AgentDispatcher, JobWorker, WorkerSupervisor
 from gni.runtime.isolation import IsolationLimits, ProcessIsolatedAgentRunner
+from gni.observability import InMemoryAuditSink, MetricsRegistry, RuntimeTelemetry
 
 
 @dataclass
@@ -174,3 +175,37 @@ def test_process_isolated_runner_terminates_timed_out_agent():
     )
     with pytest.raises(TimeoutError):
         runner.run(SlowAgent(), AgentContext("job-timeout", "trace-timeout"), {})
+
+
+
+def test_worker_emits_metrics_and_traceable_audit_event():
+    sink = InMemoryAuditSink()
+    metrics = MetricsRegistry()
+    telemetry = RuntimeTelemetry(metrics=metrics, audit_sink=sink)
+    registry = PluginRegistry()
+    registry.register(PluginManifest.from_mapping({
+        "id": "sample-agent", "name": "Sample", "version": "1.0.0",
+        "enabled": False, "entrypoint": "sample:run", "permissions": [],
+    }))
+    dispatcher = AgentDispatcher(
+        registry=registry, agents={"sample-agent": SuccessAgent()},
+        active_plugins=frozenset({"sample-agent"}),
+    )
+    queue = InMemoryJobQueue()
+    repository = InMemoryJobRepository()
+    job = Job(agent_id="sample-agent", payload={"value": "ok"})
+    assert repository.create(JobRecord(job), idempotency_key=job.id)
+    assert queue.enqueue(job, idempotency_key=job.id)
+    worker = JobWorker(
+        worker_id="worker-observed", queue=queue, repository=repository,
+        dispatcher=dispatcher, telemetry=telemetry,
+    )
+
+    outcome = worker.process_one()
+    assert outcome.action == "completed"
+    assert outcome.trace_id == job.trace_id
+    event = sink.list_recent()[0]
+    assert event.trace_id == job.trace_id
+    assert event.resource_id == job.id
+    assert event.actor_id == "worker-observed"
+    assert 'gni_jobs_processed_total{action="completed",status="succeeded"} 1' in metrics.render()
