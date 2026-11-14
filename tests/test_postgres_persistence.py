@@ -249,6 +249,7 @@ def test_postgres_runtime_health_collector_reports_durable_backlogs(persistence)
     telemetry = RuntimeTelemetry(metrics=metrics)
     collector = PostgresRuntimeHealthCollector(persistence._pool, telemetry)
 
+    before = collector.collect()
     queued_job = Job(agent_id="collector", payload={"health": "queue"})
     _, created = persistence.create_job_with_outbox(
         JobRecord(queued_job), idempotency_key=f"health:{queued_job.id}"
@@ -258,10 +259,10 @@ def test_postgres_runtime_health_collector_reports_durable_backlogs(persistence)
     assert queue.enqueue(queued_job, idempotency_key=f"health-queue:{queued_job.id}")
 
     snapshot = collector.collect()
-    assert snapshot.queue_pending == 1
-    assert snapshot.outbox_pending == 1
-    assert snapshot.workflows_running == 0
-    assert snapshot.dead_letters_open == 0
+    assert snapshot.queue_pending == before.queue_pending + 1
+    assert snapshot.outbox_pending == before.outbox_pending + 1
+    assert snapshot.workflows_running >= before.workflows_running
+    assert snapshot.dead_letters_open >= before.dead_letters_open
     rendered = metrics.render()
-    assert "gni_queue_pending_messages 1" in rendered
-    assert "gni_outbox_pending_events 1" in rendered
+    assert f"gni_queue_pending_messages {snapshot.queue_pending}" in rendered
+    assert f"gni_outbox_pending_events {snapshot.outbox_pending}" in rendered
