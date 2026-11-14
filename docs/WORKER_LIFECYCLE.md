@@ -43,6 +43,7 @@ must create and migrate the database before starting workers, and must register 
 approved agent implementations:
 
 ```python
+import os
 import threading
 from psycopg_pool import ConnectionPool
 
@@ -78,10 +79,21 @@ worker = JobWorker(
     retry_delay_seconds=30,
     telemetry=telemetry,
 )
+metrics_server = MetricsHttpServer(
+    metrics,
+    bearer_token=os.environ["GNI_METRICS_BEARER_TOKEN"],
+    host="127.0.0.1",
+    port=9108,
+)
+metrics_server.start()
+
 stop = threading.Event()
-stats = WorkerSupervisor(
-    worker, poll_interval_seconds=1, telemetry=telemetry
-).run(stop)
+try:
+    stats = WorkerSupervisor(
+        worker, poll_interval_seconds=1, telemetry=telemetry
+    ).run(stop)
+finally:
+    metrics_server.close()
 ```
 
 A service manager/container orchestrator should own the process and set the stop
@@ -95,31 +107,6 @@ It is a resource/crash boundary only, not a security sandbox: filesystem, networ
 and inherited credentials are still reachable. For hostile or third-party code,
 use a hardened container/VM sandbox with a non-root identity, read-only filesystem,
 restricted network egress, no host secrets and explicit syscall/resource policy.
-
-
-Start the optional Waitress listener from the *same process* and pass the same
-registry used by the worker:
-
-```python
-import os
-from gni.observability import MetricsHttpServer
-
-metrics_server = MetricsHttpServer(
-    metrics,
-    bearer_token=os.environ["GNI_METRICS_BEARER_TOKEN"],
-    host="127.0.0.1",
-    port=9108,
-)
-metrics_server.start()
-```
-
-Install it with `pip install -e ".[postgres,monitoring]"`. The default bind is
-loopback; if Prometheus runs on another host, use the worker's private interface
-address instead and restrict inbound port 9108 to the Prometheus host using a
-firewall/security group. Never bind to `0.0.0.0` or expose the endpoint publicly.
-The Bearer token must be a long random secret supplied through the process secret
-manager (never committed to Git). During shutdown call `metrics_server.close()`
-before closing the worker process.
 
 
 ## Runtime health monitor
