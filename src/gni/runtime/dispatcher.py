@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 
 from gni.contracts.agent import Agent, AgentContext, AgentStatus
-from gni.contracts.jobs import Job
+from gni.contracts.jobs import Job, JobStatus
 from gni.registry.registry import PluginRegistry
 
 
@@ -27,22 +27,28 @@ class AgentDispatcher:
         self._grants = granted_permissions or {}
 
     def execute(self, job: Job) -> tuple[Job, dict[str, object]]:
-        manifest = self._registry.get(job.agent_id)
-        if job.agent_id not in self._active_plugins:
-            raise DispatchError(f"Plugin is not explicitly activated: {job.agent_id}.")
-        agent = self._agents.get(job.agent_id)
+        """Convenience entry point for direct, non-worker execution."""
+        return self.execute_running(job.start())
+
+    def execute_running(self, running: Job) -> tuple[Job, dict[str, object]]:
+        """Execute a job whose RUNNING transition has already been persisted."""
+        if running.status != JobStatus.RUNNING:
+            raise DispatchError("Dispatcher requires a persisted RUNNING job.")
+        manifest = self._registry.get(running.agent_id)
+        if running.agent_id not in self._active_plugins:
+            raise DispatchError(f"Plugin is not explicitly activated: {running.agent_id}.")
+        agent = self._agents.get(running.agent_id)
         if agent is None:
-            raise DispatchError(f"No trusted runtime implementation for {job.agent_id}.")
+            raise DispatchError(f"No trusted runtime implementation for {running.agent_id}.")
         if agent.agent_id != manifest.id:
             raise DispatchError("Runtime agent ID does not match its registered manifest.")
-        granted = self._grants.get(job.agent_id, frozenset())
+        granted = self._grants.get(running.agent_id, frozenset())
         missing = set(manifest.permissions) - set(granted)
         if missing:
             raise DispatchError(
                 f"Required permissions not granted: {', '.join(sorted(missing))}"
             )
 
-        running = job.start()
         context = AgentContext(
             job_id=running.id,
             trace_id=running.trace_id,
@@ -53,9 +59,10 @@ class AgentDispatcher:
             if not isinstance(result.output, dict):
                 raise TypeError("Agent output must be a mapping.")
             json.dumps(result.output, allow_nan=False)
+            if not isinstance(result.status, AgentStatus):
+                raise TypeError("Agent returned an invalid status.")
         except Exception:  # noqa: BLE001 - isolate arbitrary plugin failures at the runtime boundary.
-            failed = running.retry()
-            return failed, {
+            return running.retry(), {
                 "error_code": "agent_execution_error",
                 "message": "Agent execution failed; inspect the restricted runtime logs.",
             }
