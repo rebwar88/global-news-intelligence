@@ -32,6 +32,9 @@ class PostgresRuntimeHealthCollector:
         self._pool = pool
         self._telemetry = telemetry
 
+    def record_collection_error(self, error: Exception) -> None:
+        self._telemetry.record_health_collection_error(error_type=type(error).__name__)
+
     def collect(self) -> RuntimeHealthSnapshot:
         query = """
         SELECT
