@@ -15,6 +15,7 @@ class InMemoryJobQueue:
         self._pending: deque[Job] = deque()
         self._reserved: dict[str, Job] = {}
         self._idempotency: set[str] = set()
+        self.dead_letters: list[tuple[Job, str]] = []
 
     def enqueue(self, job: Job, *, idempotency_key: str) -> bool:
         if not idempotency_key:
@@ -49,6 +50,12 @@ class InMemoryJobQueue:
             raise NotImplementedError("Delayed delivery is not supported by the test queue.")
         job = self._take_reserved(reservation)
         self._pending.append(job)
+
+    def dead_letter(self, reservation: QueueReservation, *, error_code: str) -> None:
+        if not error_code:
+            raise ValueError("error_code is required.")
+        job = self._take_reserved(reservation)
+        self.dead_letters.append((job, error_code))
 
     def _take_reserved(self, reservation: QueueReservation) -> Job:
         job = self._reserved.get(reservation.reservation_id)
