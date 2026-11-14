@@ -21,9 +21,14 @@ Production queue adapters must implement durable reservations, visibility expiry
 
 The repository's compare-and-set update must be atomic across workers. The worker intentionally does not acknowledge when state persistence conflicts. Monitoring should alert on repeated conflicts and exhausted attempts.
 
-## Not implemented
+## Remaining production work
 
-No service manager, distributed lease renewal, in-flight cancellation, hardened OS sandbox, metrics exporter or audit-event sink is included yet. A process supervisor such as systemd/container orchestration should manage the long-running supervisor process. The in-memory queue and repository are for tests/local development only.
+Distributed lease renewal, in-flight cancellation and a hardened OS sandbox are not
+implemented. The Prometheus metrics registry, WSGI scrape app and PostgreSQL audit
+sink are implemented; Prometheus/Grafana servers, dashboards, alert rules and external
+log aggregation have not been deployed. A process supervisor such as systemd or
+container orchestration should manage the long-running supervisor process. The
+in-memory queue, repository and audit sink are for tests/local development only.
 
 
 ## Workflow scheduling boundary
@@ -42,6 +47,8 @@ import threading
 from psycopg_pool import ConnectionPool
 
 from gni.persistence.postgres import PostgresPersistence
+from gni.persistence.audit_postgres import PostgresAuditSink
+from gni.observability import MetricsRegistry, RuntimeTelemetry
 from gni.queue.postgres import PostgresJobQueue
 from gni.runtime import (
     AgentDispatcher, IsolationLimits, JobWorker,
@@ -51,6 +58,8 @@ from gni.runtime import (
 pool = ConnectionPool(conninfo=DATABASE_URL, min_size=2, max_size=10)
 persistence = PostgresPersistence(pool)
 queue = PostgresJobQueue(pool)
+metrics = MetricsRegistry()
+telemetry = RuntimeTelemetry(metrics=metrics, audit_sink=PostgresAuditSink(pool))
 dispatcher = AgentDispatcher(
     registry=registry,
     agents=trusted_agent_implementations,
@@ -67,9 +76,12 @@ worker = JobWorker(
     dispatcher=dispatcher,
     visibility_timeout_seconds=300,
     retry_delay_seconds=30,
+    telemetry=telemetry,
 )
 stop = threading.Event()
-stats = WorkerSupervisor(worker, poll_interval_seconds=1).run(stop)
+stats = WorkerSupervisor(
+    worker, poll_interval_seconds=1, telemetry=telemetry
+).run(stop)
 ```
 
 A service manager/container orchestrator should own the process and set the stop
@@ -83,3 +95,8 @@ It is a resource/crash boundary only, not a security sandbox: filesystem, networ
 and inherited credentials are still reachable. For hostile or third-party code,
 use a hardened container/VM sandbox with a non-root identity, read-only filesystem,
 restricted network egress, no host secrets and explicit syscall/resource policy.
+
+
+Mount `PrometheusMetricsApp(metrics)` at a private `/metrics` route in the selected
+WSGI service. The endpoint has no built-in authentication; restrict it to the
+monitoring network or protect it at the reverse proxy.
