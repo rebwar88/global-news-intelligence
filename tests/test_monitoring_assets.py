@@ -109,7 +109,7 @@ def test_monitoring_compose_stack_is_private_and_secret_backed():
     assert services["grafana"]["ports"] == ["127.0.0.1:3000:3000"]
     assert services["alertmanager"]["ports"] == ["127.0.0.1:9093:9093"]
     assert any("gni-metrics-token" in mount for mount in services["prometheus"]["volumes"])
-    assert "GRAFANA_ADMIN_PASSWORD" in services["grafana"]["environment"]
+    assert "GRAFANA_ADMIN_PASSWORD" in services["grafana"]["environment"]["GF_SECURITY_ADMIN_PASSWORD"]
 
 
 def test_prometheus_stack_loads_runtime_rules_and_alertmanager():
