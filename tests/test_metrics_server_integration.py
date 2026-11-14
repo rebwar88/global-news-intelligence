@@ -6,14 +6,13 @@ from urllib.request import Request, urlopen
 
 import pytest
 
-pytest.importorskip("waitress")
-
 from gni.observability.metrics import MetricsRegistry
 from gni.observability.metrics_server import MetricsHttpServer
 from gni.observability.telemetry import RuntimeTelemetry
 
 
 def test_waitress_metrics_server_serves_shared_runtime_metrics_and_requires_auth():
+    pytest.importorskip("waitress")
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
