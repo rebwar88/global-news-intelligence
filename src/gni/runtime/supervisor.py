@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass
-from typing import Callable
+from collections.abc import Callable
 
 from gni.runtime.worker import JobWorker, WorkerOutcome
 
