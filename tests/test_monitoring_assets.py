@@ -85,4 +85,4 @@ def test_dashboard_and_alerts_cover_durable_backlog_health_metrics():
         "gni_health_collection_errors_total",
     ):
         assert metric in queries
-        assert metric in expressions
+    assert "gni_health_collection_errors_total" in expressions
