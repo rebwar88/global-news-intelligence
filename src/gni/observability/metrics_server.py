@@ -43,12 +43,15 @@ class MetricsHttpServer:
             app, host=host, port=port, threads=threads
         )
         self._thread: threading.Thread | None = None
+        self._closed = False
 
     @property
     def is_running(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
 
     def start(self) -> None:
+        if self._closed:
+            raise RuntimeError("Metrics HTTP server is closed and cannot be restarted.")
         if self.is_running:
             raise RuntimeError("Metrics HTTP server is already running.")
         self._thread = threading.Thread(
@@ -61,6 +64,9 @@ class MetricsHttpServer:
     def close(self, *, timeout_seconds: float = 10.0) -> None:
         if timeout_seconds < 0:
             raise ValueError("timeout_seconds cannot be negative.")
+        if self._closed:
+            return
+        self._closed = True
         self._server.close()
         if self._thread is not None:
             self._thread.join(timeout_seconds)
