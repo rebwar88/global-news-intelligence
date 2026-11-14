@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 
 from gni.observability.metrics import MetricsRegistry
-from gni.observability.telemetry import RuntimeTelemetry
 from gni.observability.protected_metrics import ProtectedMetricsApp
+from gni.observability.telemetry import RuntimeTelemetry
 
 
 def _request(app, *, path="/metrics", authorization=""):
