@@ -100,3 +100,35 @@ restricted network egress, no host secrets and explicit syscall/resource policy.
 Mount `PrometheusMetricsApp(metrics)` at a private `/metrics` route in the selected
 WSGI service. The endpoint has no built-in authentication; restrict it to the
 monitoring network or protect it at the reverse proxy.
+
+
+## Runtime health monitor
+
+The PostgreSQL health collector is intentionally an optional dependency-backed
+component. Install the `postgres` extra, create the same shared
+`RuntimeTelemetry` instance used by workers, and run the monitor alongside the
+worker under the process supervisor:
+
+```python
+import threading
+
+from gni.observability.health_postgres import PostgresRuntimeHealthCollector
+from gni.runtime.health_monitor import RuntimeHealthMonitor
+
+health_collector = PostgresRuntimeHealthCollector(pool, telemetry)
+health_monitor = RuntimeHealthMonitor(
+    health_collector, interval_seconds=30,
+    on_error=lambda exc: logger.exception("Runtime health collection failed", exc_info=exc),
+)
+health_stop = threading.Event()
+health_thread = threading.Thread(
+    target=health_monitor.run, args=(health_stop,),
+    name="gni-health-monitor", daemon=False,
+)
+health_thread.start()
+```
+
+During graceful shutdown, set `health_stop` and join the thread before closing
+the PostgreSQL pool. The monitor records collection failures as a bounded
+Prometheus counter and continues polling; a failed database query never
+publishes a false zero-valued snapshot. Keep the scrape endpoint private.
