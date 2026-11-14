@@ -163,3 +163,13 @@ groups:
         annotations:
           summary: "GNI has more than 100 active workflows"
           description: "The number of active workflow runs is above the provisional threshold. Tune based on expected throughput and run duration."
+
+      - alert: GNIHealthCollectionFailing
+        expr: increase(gni_health_collection_errors_total[10m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: global-news-intelligence
+        annotations:
+          summary: "GNI runtime health collection is failing"
+          description: "The PostgreSQL health monitor could not collect a durable state snapshot. Check database connectivity and collector permissions."
