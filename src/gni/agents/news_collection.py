@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from gni.contracts.agent import AgentContext, AgentResult, AgentStatus
 from gni.connectors.rss import FeedReader, FeedSource, is_https_url
+from gni.contracts.agent import AgentContext, AgentResult, AgentStatus
 
 
 @dataclass(slots=True)
