@@ -19,6 +19,6 @@ The platform baseline is exactly 12 agents: one orchestrator and eleven speciali
 
 ## Implementation status
 
-The News Collection Agent now has a tested RSS 2.0/Atom parser, an allowlisted HTTPS feed connector, bounded fetch limits, permission checks, and deterministic article IDs. Its manifest remains disabled until approved sources and durable storage are configured. Other specialist manifests remain metadata-only.
+The News Collection Agent has a tested RSS 2.0/Atom parser, an allowlisted HTTPS feed connector, bounded fetch limits, permission checks, and deterministic article IDs. Its manifest remains disabled until approved sources and durable storage are configured. The Source Discovery Agent now scores candidate publisher metadata, applies A/B/C tiers, and requires a recorded human approval before tier A. Its manifest remains disabled; live discovery connectors and durable candidate storage are not configured. Other specialist manifests remain metadata-only.
 
 Trending status is not proof of truth. AI-only media checks are not conclusive; high-risk cases require human review.
