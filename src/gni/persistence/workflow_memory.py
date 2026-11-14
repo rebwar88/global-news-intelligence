@@ -24,6 +24,13 @@ class InMemoryWorkflowRepository(WorkflowRepository):
         with self._lock:
             return self._runs.get(workflow_id)
 
+    def list_active(self, *, limit: int = 100) -> tuple[WorkflowRun, ...]:
+        if limit < 1:
+            raise ValueError("limit must be positive.")
+        with self._lock:
+            return tuple(run for run in self._runs.values()
+                         if run.status.value == "running")[:limit]
+
     def save(self, run: WorkflowRun, *, expected_version: int) -> bool:
         with self._lock:
             current = self._runs.get(run.workflow_id)
