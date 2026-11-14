@@ -242,14 +242,18 @@ def test_postgres_audit_sink_persists_and_filters_traceable_events(persistence):
 
 
 def test_postgres_runtime_health_collector_reports_durable_backlogs(persistence):
-    from gni.observability import MetricsRegistry, PostgresRuntimeHealthCollector, RuntimeTelemetry
+    from gni.observability import MetricsRegistry, RuntimeTelemetry
+    from gni.observability.health_postgres import PostgresRuntimeHealthCollector
 
     metrics = MetricsRegistry()
     telemetry = RuntimeTelemetry(metrics=metrics)
     collector = PostgresRuntimeHealthCollector(persistence._pool, telemetry)
 
     queued_job = Job(agent_id="collector", payload={"health": "queue"})
-    assert persistence.create(JobRecord(queued_job), idempotency_key=f"health:{queued_job.id}")
+    _, created = persistence.create_job_with_outbox(
+        JobRecord(queued_job), idempotency_key=f"health:{queued_job.id}"
+    )
+    assert created is True
     queue = PostgresJobQueue(persistence._pool)
     assert queue.enqueue(queued_job, idempotency_key=f"health-queue:{queued_job.id}")
 
