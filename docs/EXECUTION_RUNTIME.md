@@ -19,7 +19,7 @@ The worker provides at-least-once processing, not exactly-once side effects. Age
 
 ## Not production-ready yet
 
-The in-memory queue is not suitable for GitHub Actions across separate runs. It does not implement real visibility-timeout expiry or delayed delivery. No durable database/queue adapter, polling supervisor, lease renewal, process sandbox, CPU/memory/wall-clock enforcement, cancellation signal handling, metrics exporter or audit-event sink exists yet.
+The in-memory queue is not suitable for GitHub Actions across separate runs. It does not implement real visibility-timeout expiry or delayed delivery. PostgreSQL persistence/queue adapters, a polling supervisor, process resource limits, Prometheus metrics registry/WSGI scrape app and PostgreSQL audit sink are implemented and CI-tested. Lease renewal, hardened sandboxing, cancellation of in-flight work, external Prometheus/Grafana deployment, alert rules and model-provider cost instrumentation remain future work.
 
 The dispatcher is synchronous and does not execute untrusted plugin code in an isolated process. Do not expose it to arbitrary third-party plugins. The next architecture decision is the durable queue provider and database hosting. Do not persist critical state in a GitHub runner filesystem or workflow artifacts.
 
@@ -44,3 +44,12 @@ The dispatcher is synchronous and does not execute untrusted plugin code in an i
 - Agent jobs receive a stable envelope containing workflow_id, workflow_step_id, and the original step input under input.
 - This is a scheduler core, not a continuously running service. A durable scheduler trigger/supervisor must call advance() periodically and recover stale runs after process restarts.
 - Workflow-run and job repositories must be durable and share consistent atomic/CAS guarantees in production. In-memory adapters are tests/local development only.
+
+
+## Observability
+
+Worker outcomes and supervisor lifecycle are instrumented through the optional
+`RuntimeTelemetry` facade. It emits bounded-cardinality counters/histograms and
+traceable audit events without logging job payloads or raw exception messages.
+See [OBSERVABILITY.md](OBSERVABILITY.md) for metric names, Prometheus scrape setup,
+PostgreSQL audit storage, access controls and alert recommendations.
