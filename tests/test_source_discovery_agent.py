@@ -51,18 +51,16 @@ def test_high_score_is_not_automatically_approved():
     assert "high_score_is_not_approval" in result["reasons"]
 
 
-def test_tier_a_requires_recorded_human_approval():
-    result = evaluate_candidate(
-        strong_candidate(human_approved=True, approval_reference="review-2026-001")
-    )
+def test_tier_a_requires_trusted_recorded_human_approval():
+    result = evaluate_candidate(strong_candidate(), approval_reference="review-2026-001")
     assert result["tier"] == "A"
     assert result["approval_status"] == "human_approved"
 
 
-def test_missing_approval_reference_prevents_tier_a():
-    result = evaluate_candidate(strong_candidate(human_approved=True))
+def test_candidate_metadata_cannot_self_approve():
+    result = evaluate_candidate(strong_candidate())
     assert result["tier"] == "B"
-    assert "approval_reference_missing" in result["reasons"]
+    assert "high_score_is_not_approval" in result["reasons"]
 
 
 def test_unsafe_url_is_rejected():
@@ -90,7 +88,11 @@ def test_agent_returns_ranked_tiers_and_filters_unsafe_evidence():
         strong_candidate(source_id="z-source", evidence_urls=("https://publisher.example.org/a", "http://bad.example/a")),
         strong_candidate(source_id="a-source", human_approved=True, approval_reference="human-7"),
     )
-    agent = SourceDiscoveryAgent("source-discovery", FakeProvider(candidates))
+    agent = SourceDiscoveryAgent(
+        "source-discovery",
+        FakeProvider(candidates),
+        approval_references={"a-source": "human-7"},
+    )
     result = agent.run(
         context("sources.discover", "sources.candidates.write"),
         {"regions": ["Iraq", "Kurdistan Region"], "topics": ["politics"], "limit": 5},
