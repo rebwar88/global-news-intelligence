@@ -37,8 +37,8 @@ def _duration(started: str, updated: str) -> float | None:
     if not started or not updated:
         return None
     try:
-        start = datetime.fromisoformat(started.replace("Z", "+00:00"))
-        end = datetime.fromisoformat(updated.replace("Z", "+00:00"))
+        start = datetime.fromisoformat(started)
+        end = datetime.fromisoformat(updated)
     except ValueError:
         return None
     return max(0.0, round((end - start).total_seconds(), 3))
