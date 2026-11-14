@@ -1,0 +1,55 @@
+name: GNI Monitoring Report
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: gni-monitoring-report-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/download-artifact@v4
+        name: Download CI test report
+        continue-on-error: true
+        with:
+          name: junit-report
+          path: artifacts
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Generate operational report
+        env:
+          GNI_RUN_ID: ${{ github.event.workflow_run.id }}
+          GNI_RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          GNI_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          GNI_STATUS: ${{ github.event.workflow_run.status }}
+          GNI_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          GNI_SHA: ${{ github.event.workflow_run.head_sha }}
+          GNI_URL: ${{ github.event.workflow_run.html_url }}
+          GNI_EVENT: ${{ github.event.workflow_run.event }}
+          GNI_ACTOR: ${{ github.event.workflow_run.actor.login }}
+          GNI_STARTED_AT: ${{ github.event.workflow_run.run_started_at }}
+          GNI_UPDATED_AT: ${{ github.event.workflow_run.updated_at }}
+        run: python scripts/ci_monitoring_report.py --junit artifacts/junit.xml --json-out artifacts/monitoring-report.json --markdown-out artifacts/monitoring-report.md
+      - name: Add report to workflow summary
+        run: cat artifacts/monitoring-report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload operational report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gni-monitoring-report-${{ github.event.workflow_run.run_number }}
+          path: artifacts/monitoring-report.*
+          if-no-files-found: warn
+          retention-days: 30
