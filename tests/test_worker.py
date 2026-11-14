@@ -208,4 +208,22 @@ def test_worker_emits_metrics_and_traceable_audit_event():
     assert event.trace_id == job.trace_id
     assert event.resource_id == job.id
     assert event.actor_id == "worker-observed"
-    assert 'gni_jobs_processed_total{action="completed",status="succeeded"} 1' in metrics.render()
+    assert 'gni_jobs_processed_total{action="completed",agent="sample-agent",status="succeeded"} 1' in metrics.render()
+
+
+
+def test_supervisor_tracks_running_workers_and_poll_results():
+    metrics = MetricsRegistry()
+    telemetry = RuntimeTelemetry(metrics=metrics)
+    worker, _, _, _ = make_worker(SuccessAgent())
+    stop = threading.Event()
+    supervisor = WorkerSupervisor(
+        worker, poll_interval_seconds=0.001, telemetry=telemetry,
+    )
+    stats = supervisor.run(stop, max_polls=2)
+    assert stats.processed == 1
+    rendered = metrics.render()
+    assert "gni_worker_starts_total 1" in rendered
+    assert "gni_workers_running 0" in rendered
+    assert 'gni_worker_polls_total{result="processed"} 1' in rendered
+    assert 'gni_worker_polls_total{result="idle"} 1' in rendered
