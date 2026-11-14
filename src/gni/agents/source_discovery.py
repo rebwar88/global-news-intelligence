@@ -53,7 +53,9 @@ def _public_https_url(value: str) -> bool:
         return False
 
 
-def evaluate_candidate(\n    candidate: SourceCandidate, *, approval_reference: str | None = None\n) -> dict[str, object]:
+def evaluate_candidate(
+    candidate: SourceCandidate, *, approval_reference: str | None = None
+) -> dict[str, object]:
     """Score only supplied, inspectable facts; never infer truth from popularity."""
     reasons: list[str] = []
     if not candidate.source_id or len(candidate.source_id) > 63:
