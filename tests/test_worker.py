@@ -1,10 +1,17 @@
+import os
+import threading
+import time
 from dataclasses import dataclass
 
+import pytest
+
 from gni.contracts import AgentResult, AgentStatus, Job, JobStatus
+from gni.contracts.agent import AgentContext
 from gni.persistence import InMemoryJobRepository, JobRecord
 from gni.queue import InMemoryJobQueue
 from gni.registry import PluginManifest, PluginRegistry
-from gni.runtime import AgentDispatcher, JobWorker
+from gni.runtime import AgentDispatcher, JobWorker, WorkerSupervisor
+from gni.runtime.isolation import IsolationLimits, ProcessIsolatedAgentRunner
 
 
 @dataclass
@@ -121,7 +128,7 @@ class PermanentFailureAgent:
 
 
 def test_worker_sends_permanent_failure_to_dead_letter():
-    worker, queue, repository, job = make_worker(PermanentFailureAgent())
+    worker, queue, _repository, job = make_worker(PermanentFailureAgent())
     outcome = worker.process_one()
     assert outcome.status == JobStatus.FAILED
     assert outcome.action == "dead_lettered"
@@ -131,9 +138,6 @@ def test_worker_sends_permanent_failure_to_dead_letter():
 
 
 def test_worker_supervisor_polls_and_stops_cooperatively():
-    import threading
-    from gni.runtime.supervisor import WorkerSupervisor
-
     worker, _, _, _ = make_worker(SuccessAgent())
     stop = threading.Event()
     supervisor = WorkerSupervisor(worker, poll_interval_seconds=0.001)
@@ -144,10 +148,7 @@ def test_worker_supervisor_polls_and_stops_cooperatively():
 
 
 def test_process_isolated_runner_executes_agent_with_resource_limits():
-    from gni.runtime.isolation import IsolationLimits, ProcessIsolatedAgentRunner
-    from gni.contracts.agent import AgentContext
-
-    if __import__("os").name != "posix":
+    if os.name != "posix":
         return
     result = ProcessIsolatedAgentRunner(
         IsolationLimits(timeout_seconds=5, memory_bytes=2 * 1024 * 1024 * 1024, cpu_seconds=4)
@@ -158,12 +159,6 @@ def test_process_isolated_runner_executes_agent_with_resource_limits():
 
 
 def test_process_isolated_runner_terminates_timed_out_agent():
-    import os
-    import time
-    import pytest
-    from gni.contracts.agent import AgentContext
-    from gni.runtime.isolation import IsolationLimits, ProcessIsolatedAgentRunner
-
     if os.name != "posix":
         pytest.skip("POSIX process resource limits are required.")
     @dataclass
