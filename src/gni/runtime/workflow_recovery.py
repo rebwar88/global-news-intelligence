@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from gni.observability.telemetry import RuntimeTelemetry
 from gni.orchestration.scheduler import WorkflowScheduler
 from gni.persistence.workflows import WorkflowRepository, WorkflowStatus
-from gni.observability.telemetry import RuntimeTelemetry
 
 
 @dataclass(frozen=True, slots=True)
