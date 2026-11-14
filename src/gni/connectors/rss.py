@@ -12,9 +12,9 @@ from email.utils import parsedate_to_datetime
 from html import unescape
 from html.parser import HTMLParser
 from typing import Protocol
+from urllib.parse import urlsplit
 from urllib import error
 from urllib import request as urllib_request
-from urllib.parse import urlsplit
 
 
 _ATOM = "{http://www.w3.org/2005/Atom}"
