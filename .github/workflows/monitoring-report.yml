@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: main
       - uses: actions/download-artifact@v4
         name: Download CI test report
         continue-on-error: true
