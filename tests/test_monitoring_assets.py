@@ -132,8 +132,7 @@ def test_grafana_provisioning_matches_dashboard_datasource_uid():
         (ROOT / "monitoring/grafana/global-news-intelligence-dashboard.json").read_text()
     )
     for panel in dashboard["panels"]:
-        for target in panel.get("targets", []):
-            assert target["datasource"]["uid"] == "DS_PROMETHEUS"
+        assert panel["datasource"]["uid"] == "DS_PROMETHEUS"
 
 
 def test_alertmanager_does_not_invent_an_external_notification_destination():
