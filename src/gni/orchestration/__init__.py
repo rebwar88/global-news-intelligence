@@ -1,4 +1,4 @@
-"""Workflow planning and job submission public API."""
+"""Workflow planning, scheduling and job submission public API."""
 from gni.orchestration.planner import (
     ExecutionPlan,
     Orchestrator,
@@ -6,6 +6,7 @@ from gni.orchestration.planner import (
     WorkflowStep,
     WorkflowValidationError,
 )
+from gni.orchestration.scheduler import WorkflowConcurrencyError, WorkflowScheduler
 from gni.orchestration.submission import (
     JobSubmissionError,
     JobSubmissionService,
@@ -20,7 +21,9 @@ __all__ = [
     "Orchestrator",
     "SubmissionPendingError",
     "SubmissionResult",
+    "WorkflowConcurrencyError",
     "WorkflowPlan",
+    "WorkflowScheduler",
     "WorkflowStep",
     "WorkflowValidationError",
 ]
