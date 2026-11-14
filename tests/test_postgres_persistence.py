@@ -20,6 +20,7 @@ from gni.persistence.workflows import (
     WorkflowStepState,
     WorkflowStepStatus,
 )
+from gni.queue.postgres import PostgresJobQueue
 
 
 @pytest.fixture(scope="module")
@@ -28,10 +29,15 @@ def persistence():
     if not dsn:
         pytest.skip("GNI_TEST_DATABASE_URL is not configured.")
     pool = ConnectionPool(conninfo=dsn, min_size=1, max_size=5, open=True)
-    migration = Path("migrations/postgresql/001_initial_persistence.sql").read_text()
+    for migration_path in (
+        "migrations/postgresql/001_initial_persistence.sql",
+        "migrations/postgresql/002_job_queue.sql",
+    ):
+        migration = Path(migration_path).read_text()
+        with pool.connection() as conn:
+            conn.execute(migration, prepare=False)
     with pool.connection() as conn:
-        conn.execute(migration, prepare=False)
-        conn.execute("TRUNCATE outbox_events, workflow_runs, jobs CASCADE")
+        conn.execute("TRUNCATE queue_messages, outbox_events, workflow_runs, jobs CASCADE")
     yield PostgresPersistence(pool)
     pool.close()
 
@@ -106,3 +112,58 @@ def test_postgres_workflow_repository_round_trip_and_cas(persistence):
     assert repository.save(updated, expected_version=1) is True
     assert repository.save(updated, expected_version=1) is False
     assert repository.get(run.workflow_id) == updated
+
+
+
+def test_postgres_queue_reserve_ack_and_idempotent_enqueue(persistence):
+    job = Job(agent_id="collector", payload={"feed": "wire"})
+    assert persistence.create(JobRecord(job), idempotency_key=f"job:{job.id}")
+    queue = PostgresJobQueue(persistence._pool)
+    key = f"queue:{job.id}"
+    assert queue.enqueue(job, idempotency_key=key) is True
+    assert queue.enqueue(job, idempotency_key=key) is False
+
+    reservation = queue.reserve(worker_id="worker-a", visibility_timeout_seconds=30)
+    assert reservation is not None
+    assert reservation.job.id == job.id
+    queue.acknowledge(reservation)
+    assert queue.reserve(worker_id="worker-b", visibility_timeout_seconds=30) is None
+
+
+def test_postgres_queue_release_and_stale_reservation_fencing(persistence):
+    job = Job(agent_id="collector", payload={"feed": "wire"})
+    assert persistence.create(JobRecord(job), idempotency_key=f"job:{job.id}")
+    queue = PostgresJobQueue(persistence._pool)
+    assert queue.enqueue(job, idempotency_key=f"queue:{job.id}")
+
+    first = queue.reserve(worker_id="worker-a", visibility_timeout_seconds=30)
+    assert first is not None
+    queue.release(first)
+
+    second = queue.reserve(worker_id="worker-b", visibility_timeout_seconds=30)
+    assert second is not None
+    assert second.reservation_id != first.reservation_id
+    with pytest.raises(ValueError, match="stale"):
+        queue.acknowledge(first)
+    queue.acknowledge(second)
+
+
+def test_postgres_queue_recovers_expired_visibility_lease(persistence):
+    job = Job(agent_id="collector", payload={"feed": "wire"})
+    assert persistence.create(JobRecord(job), idempotency_key=f"job:{job.id}")
+    queue = PostgresJobQueue(persistence._pool)
+    assert queue.enqueue(job, idempotency_key=f"queue:{job.id}")
+
+    first = queue.reserve(worker_id="worker-a", visibility_timeout_seconds=30)
+    assert first is not None
+    with persistence._pool.connection() as conn:
+        conn.execute(
+            "UPDATE queue_messages SET locked_until=NOW()-INTERVAL '1 second' "
+            "WHERE job_id=%s", (job.id,)
+        )
+    second = queue.reserve(worker_id="worker-b", visibility_timeout_seconds=30)
+    assert second is not None
+    assert second.reservation_id != first.reservation_id
+    with pytest.raises(ValueError, match="stale"):
+        queue.release(first)
+    queue.acknowledge(second)
