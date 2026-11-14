@@ -54,9 +54,12 @@ class MetricsRegistry:
         return family
 
     def _check_series(self, family: _Family, labels: tuple[tuple[str, str], ...]) -> None:
-        if labels not in family.samples and labels not in family.histograms:
-            if len(family.samples) + len(family.histograms) >= self._max_series:
-                raise ValueError("Metric series limit reached; avoid high-cardinality labels.")
+        if (
+            labels not in family.samples
+            and labels not in family.histograms
+            and len(family.samples) + len(family.histograms) >= self._max_series
+        ):
+            raise ValueError("Metric series limit reached; avoid high-cardinality labels.")
 
     def increment(
         self, name: str, value: float = 1, *, labels: dict[str, str] | None = None,
