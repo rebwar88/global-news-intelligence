@@ -97,3 +97,48 @@ def test_prometheus_scrape_config_uses_authenticated_private_target():
     assert scrape["metrics_path"] == "/metrics"
     assert scrape["bearer_token_file"]
     assert scrape["static_configs"][0]["targets"] == ["gni-runtime.internal:9108"]
+
+def test_monitoring_compose_stack_is_private_and_secret_backed():
+    compose = yaml.safe_load((ROOT / "monitoring/compose.yml").read_text())
+    services = compose["services"]
+    assert set(services) == {"prometheus", "grafana", "alertmanager"}
+    for service in services.values():
+        assert service["restart"] == "unless-stopped"
+        assert "no-new-privileges:true" in service["security_opt"]
+    assert services["prometheus"]["ports"] == ["127.0.0.1:9090:9090"]
+    assert services["grafana"]["ports"] == ["127.0.0.1:3000:3000"]
+    assert services["alertmanager"]["ports"] == ["127.0.0.1:9093:9093"]
+    assert any("gni-metrics-token" in mount for mount in services["prometheus"]["volumes"])
+    assert "GRAFANA_ADMIN_PASSWORD" in services["grafana"]["environment"]
+
+
+def test_prometheus_stack_loads_runtime_rules_and_alertmanager():
+    config = yaml.safe_load((ROOT / "monitoring/prometheus/prometheus.yml").read_text())
+    assert "/etc/prometheus/alerts.yml" in config["rule_files"]
+    assert config["alerting"]["alertmanagers"][0]["static_configs"][0]["targets"] == [
+        "alertmanager:9093"
+    ]
+    runtime = next(job for job in config["scrape_configs"] if job["job_name"] == "gni-runtime")
+    assert runtime["bearer_token_file"] == "/etc/prometheus/secrets/gni-metrics-token"
+    assert runtime["static_configs"][0]["targets"] == ["host.docker.internal:9108"]
+
+
+def test_grafana_provisioning_matches_dashboard_datasource_uid():
+    datasource = yaml.safe_load(
+        (ROOT / "monitoring/grafana/provisioning/datasources/prometheus.yml").read_text()
+    )
+    assert datasource["datasources"][0]["uid"] == "DS_PROMETHEUS"
+    dashboard = json.loads(
+        (ROOT / "monitoring/grafana/global-news-intelligence-dashboard.json").read_text()
+    )
+    for panel in dashboard["panels"]:
+        for target in panel.get("targets", []):
+            assert target["datasource"]["uid"] == "DS_PROMETHEUS"
+
+
+def test_alertmanager_does_not_invent_an_external_notification_destination():
+    config = yaml.safe_load((ROOT / "monitoring/alertmanager/alertmanager.yml").read_text())
+    receiver_name = config["route"]["receiver"]
+    assert receiver_name in {receiver["name"] for receiver in config["receivers"]}
+    assert config["receivers"][0].get("webhook_configs") is None
+    assert config["receivers"][0].get("email_configs") is None
