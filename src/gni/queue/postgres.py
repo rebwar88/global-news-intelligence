@@ -114,6 +114,27 @@ class PostgresJobQueue:
             if cur.rowcount != 1:
                 raise ValueError("Unknown or stale queue reservation.")
 
+    def dead_letter(self, reservation: QueueReservation, *, error_code: str) -> None:
+        if not error_code or len(error_code) > 128:
+            raise ValueError("error_code must contain 1-128 characters.")
+        token = self._token(reservation.reservation_id)
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(
+                """WITH moved AS (
+                    UPDATE queue_messages SET status='acknowledged',worker_id=NULL,
+                    reservation_token=NULL,locked_until=NULL,updated_at=NOW()
+                    WHERE job_id=%s AND status='processing' AND reservation_token=%s
+                    RETURNING id,job_id,idempotency_key,created_at
+                )
+                INSERT INTO dead_letter_messages
+                (job_id,queue_message_id,idempotency_key,error_code,original_created_at)
+                SELECT job_id,id,idempotency_key,%s,created_at FROM moved
+                ON CONFLICT (job_id) DO NOTHING""",
+                (reservation.job.id, token, error_code),
+            )
+            if cur.rowcount != 1:
+                raise ValueError("Unknown, stale, or already dead-lettered reservation.")
+
     @staticmethod
     def _token(value: str) -> UUID:
         try:
