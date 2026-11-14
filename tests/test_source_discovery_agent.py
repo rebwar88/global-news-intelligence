@@ -117,7 +117,7 @@ def test_agent_rejects_invalid_limits_and_duplicate_ids():
     agent = SourceDiscoveryAgent("source-discovery", FakeProvider((strong_candidate(),)))
     permissions = context("sources.discover", "sources.candidates.write")
     assert agent.run(permissions, {"limit": 201}).error_code == "invalid_discovery_request"
-    duplicate = SourceCandidate(**{**strong_candidate().__dict__}) if False else strong_candidate()
+    duplicate = strong_candidate()
     provider = FakeProvider((duplicate, duplicate))
     result = SourceDiscoveryAgent("source-discovery", provider).run(permissions, {})
     assert result.error_code == "duplicate_candidate_ids"
