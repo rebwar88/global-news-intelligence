@@ -2,12 +2,26 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 from dataclasses import dataclass, field
 from typing import Protocol
 from urllib.parse import urlsplit
 
 from gni.connectors.rss import is_https_url
 from gni.contracts.agent import AgentContext, AgentResult, AgentStatus
+
+
+_SOURCE_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
+_BOOLEAN_FIELDS = (
+    "publisher_identity_verified",
+    "ownership_transparent",
+    "editorial_policy_available",
+    "corrections_policy_available",
+    "contact_available",
+    "original_reporting",
+    "independent_reporting",
+    "known_copying_network",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,10 +72,20 @@ def evaluate_candidate(
 ) -> dict[str, object]:
     """Score only supplied, inspectable facts; never infer truth from popularity."""
     reasons: list[str] = []
-    if not candidate.source_id or len(candidate.source_id) > 63:
-        raise ValueError("Candidate source_id must be a non-empty short identifier.")
-    if not candidate.name.strip():
+    if not isinstance(candidate.source_id, str) or not _SOURCE_ID.fullmatch(candidate.source_id):
+        raise ValueError("Candidate source_id must be a short lowercase identifier.")
+    if not isinstance(candidate.name, str) or not candidate.name.strip():
         raise ValueError("Candidate name is required.")
+    if not isinstance(candidate.website_url, str):
+        raise ValueError("Candidate website URL must be a string.")
+    if any(type(getattr(candidate, field_name)) is not bool for field_name in _BOOLEAN_FIELDS):
+        raise ValueError("Candidate verification flags must be booleans.")
+    for field_name in ("regions", "topics", "evidence_urls"):
+        values = getattr(candidate, field_name)
+        if not isinstance(values, tuple) or any(
+            not isinstance(value, str) or not value.strip() for value in values
+        ):
+            raise ValueError(f"Candidate {field_name} must be a tuple of non-empty strings.")
 
     safe_url = _public_https_url(candidate.website_url)
     if not safe_url:
