@@ -23,3 +23,14 @@ PostgreSQL is a candidate, not a confirmed decision. Redis, managed queues, and 
 - save() must atomically compare the expected version and persist exactly one version increment. This protects against stale scheduler updates.
 - Workflow state is separate from job state: the job repository remains authoritative for agent execution outcomes; workflow state records dependency progress and orchestration status.
 - The in-memory workflow adapter is process-local and non-durable. A production adapter must persist workflow runs across separate GitHub Actions executions and support concurrent scheduler invocations safely.
+
+
+## Transactional outbox
+
+- `SubmissionRepository.create_job_with_outbox()` is the atomic submission contract: a production adapter must insert the job and its `job.queued` outbox event in the same database transaction.
+- Outbox payload is intentionally minimal: it stores the job/aggregate ID and idempotency key, not a second copy of the potentially sensitive job payload.
+- `OutboxPublisher` claims batches with expiring leases and fencing tokens, enqueues the authoritative job using the original idempotency key, and marks the event published only after enqueue succeeds.
+- Failures receive capped exponential retry scheduling; exhausted events and events with missing job records are dead-lettered with sanitized error codes.
+- If a publisher dies while holding a lease, a later tick reclaims the event after `locked_until`. If it dies after queue enqueue but before marking the event published, the queue idempotency key makes the next enqueue safe.
+- `InMemoryOutboxRepository` provides a lock-protected atomic test implementation only. It is not durable across process exits and is not a production database adapter.
+- The outbox provides reliable at-least-once publication, not exactly-once execution or exactly-once external side effects.
