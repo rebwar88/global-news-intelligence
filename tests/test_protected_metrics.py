@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from gni.observability.metrics import MetricsRegistry
+from gni.observability.telemetry import RuntimeTelemetry
 from gni.observability.protected_metrics import ProtectedMetricsApp
 
 
@@ -22,7 +23,11 @@ def _request(app, *, path="/metrics", authorization=""):
 
 def test_protected_metrics_endpoint_requires_valid_bearer_token():
     metrics = MetricsRegistry()
-    metrics.increment("gni_test_events_total")
+    telemetry = RuntimeTelemetry(metrics=metrics)
+    telemetry.record_job(
+        worker_id="worker-test", job_id="job-test", trace_id="trace-test",
+        status="succeeded", action="completed", duration_seconds=0.01, attempt=1,
+    )
     app = ProtectedMetricsApp(metrics, bearer_token="long-random-secret")
 
     response, body = _request(app)
@@ -35,7 +40,7 @@ def test_protected_metrics_endpoint_requires_valid_bearer_token():
 
     response, body = _request(app, authorization="Bearer long-random-secret")
     assert response[0] == "200 OK"
-    assert b"gni_test_events_total 1" in body
+    assert b'gni_jobs_processed_total{action="completed",agent="unknown",status="succeeded"} 1' in body
 
 
 def test_protected_metrics_endpoint_rejects_empty_token():
