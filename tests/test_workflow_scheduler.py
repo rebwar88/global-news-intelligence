@@ -135,7 +135,7 @@ def test_workflow_repository_lists_active_runs_for_recovery():
     from gni.persistence.workflow_memory import InMemoryWorkflowRepository
 
     repository = InMemoryWorkflowRepository()
-    plan = ExecutionPlan("wf-recovery", None, (WorkflowStep("collect", "collector"),))
+    plan = ExecutionPlan(workflow_id="wf-recovery", ordered_steps=(WorkflowStep("collect", "collector"),))
     run = WorkflowRun(
         workflow_id="wf-recovery", plan=plan,
         steps=(WorkflowStepState("collect"),),
@@ -153,7 +153,7 @@ def test_workflow_recovery_service_advances_active_runs():
     from gni.runtime.workflow_recovery import WorkflowRecoveryService
 
     repository = InMemoryWorkflowRepository()
-    plan = ExecutionPlan("wf-restart", None, (WorkflowStep("collect", "collector"),))
+    plan = ExecutionPlan(workflow_id="wf-restart", ordered_steps=(WorkflowStep("collect", "collector"),))
     run = WorkflowRun(
         workflow_id="wf-restart", plan=plan,
         steps=(WorkflowStepState("collect"),),
