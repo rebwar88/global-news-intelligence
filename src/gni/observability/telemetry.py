@@ -127,6 +127,13 @@ class RuntimeTelemetry:
             help_text="Dead-letter creation and replay operations.",
         )
 
+    def record_health_collection_error(self, *, error_type: str) -> None:
+        self._safe_increment(
+            "gni_health_collection_errors_total",
+            labels={"error_type": error_type[:64]},
+            help_text="Failures while collecting durable PostgreSQL runtime health.",
+        )
+
     def record_runtime_health(self, *, queue_pending: int, queue_processing: int,
                               queue_expired_leases: int, queue_oldest_pending_seconds: float,
                               outbox_pending: int, outbox_processing: int,
