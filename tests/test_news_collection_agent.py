@@ -149,3 +149,67 @@ def test_agent_rejects_unbounded_or_duplicate_source_lists():
             context("sources.read", "articles.create"), {"source_ids": source_ids}
         )
         assert result.status == AgentStatus.FAILED
+
+def test_rss_http_client_fetches_allowlisted_https_feed_without_redirects(monkeypatch):
+    import gni.connectors.rss as rss
+
+    body = b'<rss version="2.0"><channel><item><title>One</title><link>https://news.example.org/1</link></item></channel></rss>'
+
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def geturl(self):
+            return "https://feeds.example.org/rss.xml"
+
+        def read(self, limit):
+            assert limit > len(body)
+            return body
+
+    class Opener:
+        def open(self, request, timeout):
+            assert request.full_url == "https://feeds.example.org/rss.xml"
+            assert timeout == 3
+            return Response()
+
+    monkeypatch.setattr(rss, "_assert_public_host", lambda hostname: None)
+    client = rss.RSSFeedClient(timeout_seconds=3, max_bytes=1024)
+    client._opener = Opener()
+    items = client.fetch(source())
+    assert len(items) == 1
+    assert items[0].title == "One"
+
+
+def test_rss_http_client_rejects_oversized_response(monkeypatch):
+    import pytest
+    import gni.connectors.rss as rss
+
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def geturl(self):
+            return "https://feeds.example.org/rss.xml"
+
+        def read(self, limit):
+            return b"x" * limit
+
+    class Opener:
+        def open(self, request, timeout):
+            return Response()
+
+    monkeypatch.setattr(rss, "_assert_public_host", lambda hostname: None)
+    client = rss.RSSFeedClient(max_bytes=32)
+    client._opener = Opener()
+    with pytest.raises(ValueError, match="size limit"):
+        client.fetch(source())
