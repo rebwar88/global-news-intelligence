@@ -4,8 +4,6 @@ from __future__ import annotations
 import ipaddress
 import socket
 import ssl
-import urllib.error
-import urllib.request
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -13,9 +11,8 @@ from email.utils import parsedate_to_datetime
 from html import unescape
 from html.parser import HTMLParser
 from typing import Protocol
+from urllib import error, request
 from urllib.parse import urlsplit
-
-
 _ATOM = "{http://www.w3.org/2005/Atom}"
 
 
@@ -62,7 +59,7 @@ class FeedReader(Protocol):
         ...
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
+class _NoRedirect(request.HTTPRedirectHandler):
     def redirect_request(self, request, file_pointer, code, message, headers, new_url):
         return None
 
@@ -91,7 +88,7 @@ def normalize_published(value: str | None) -> str | None:
     if not value:
         return None
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value)
     except ValueError:
         try:
             parsed = parsedate_to_datetime(value)
@@ -176,8 +173,8 @@ class RSSFeedClient:
         self._timeout = timeout_seconds
         self._max_bytes = max_bytes
         self._max_items = max_items
-        self._opener = urllib.request.build_opener(
-            urllib.request.HTTPSHandler(context=ssl.create_default_context()),
+        self._opener = request.build_opener(
+            request.HTTPSHandler(context=ssl.create_default_context()),
             _NoRedirect(),
         )
 
@@ -188,7 +185,7 @@ class RSSFeedClient:
         }:
             raise ValueError("Feed host is not in the source allowlist.")
         _assert_public_host(parsed.hostname)
-        request = urllib.request.Request(
+        request = request.Request(
             source.feed_url,
             headers={"User-Agent": "GlobalNewsIntelligence/0.1 (+RSS reader)", "Accept": "application/atom+xml, application/rss+xml, application/xml, text/xml"},
         )
@@ -200,9 +197,9 @@ class RSSFeedClient:
                 if final.scheme != "https" or final.hostname != parsed.hostname:
                     raise ValueError("Feed response URL changed unexpectedly.")
                 document = response.read(self._max_bytes + 1)
-        except urllib.error.HTTPError as exc:
+        except error.HTTPError as exc:
             raise ValueError(f"Feed request failed with HTTP status {exc.code}.") from exc
-        except urllib.error.URLError as exc:
+        except error.URLError as exc:
             raise ValueError("Feed request could not be completed.") from exc
         if len(document) > self._max_bytes:
             raise ValueError("Feed response exceeds the configured size limit.")
