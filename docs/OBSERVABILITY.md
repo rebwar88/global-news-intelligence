@@ -113,7 +113,7 @@ Compose it with the same telemetry registry used by the runtime and call
 `collect()` on a bounded interval (for example, every 30–60 seconds):
 
 ```python
-from gni.observability import PostgresRuntimeHealthCollector
+from gni.observability.health_postgres import PostgresRuntimeHealthCollector
 
 health = PostgresRuntimeHealthCollector(pool, telemetry)
 snapshot = health.collect()
