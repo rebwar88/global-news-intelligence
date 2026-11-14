@@ -143,8 +143,6 @@ def test_candidate_metadata_rejects_malformed_identifiers_and_filters():
 
 
 def test_agent_reports_malformed_provider_metadata_without_leaking_details():
-    from gni.agents.source_discovery import SourceCandidate
-
     malformed = strong_candidate(publisher_identity_verified=1)
     agent = SourceDiscoveryAgent("source-discovery", FakeProvider((malformed,)))
     result = agent.run(
