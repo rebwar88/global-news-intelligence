@@ -19,6 +19,20 @@ import xml.etree.ElementTree as ET
 _ATOM = "{http://www.w3.org/2005/Atom}"
 
 
+def is_https_url(value: str) -> bool:
+    try:
+        parsed = urlsplit(value)
+        return (
+            parsed.scheme == "https"
+            and bool(parsed.hostname)
+            and parsed.username is None
+            and parsed.password is None
+            and parsed.port in (None, 443)
+        )
+    except ValueError:
+        return False
+
+
 @dataclass(frozen=True, slots=True)
 class FeedSource:
     source_id: str
@@ -35,11 +49,8 @@ class FeedSource:
             raise ValueError("Source name is required.")
         parsed = urlsplit(self.feed_url)
         if (
-            parsed.scheme != "https"
+            not is_https_url(self.feed_url)
             or not parsed.hostname
-            or parsed.username
-            or parsed.password
-            or parsed.port not in (None, 443)
             or parsed.hostname.lower() not in {host.lower() for host in self.allowed_hosts}
         ):
             raise ValueError("Feed URL must use HTTPS and an explicitly allowed host.")
@@ -136,7 +147,7 @@ def parse_feed(document: bytes, *, max_items: int = 100) -> tuple[FeedItem, ...]
                 entry.findtext(f"{_ATOM}published")
                 or entry.findtext(f"{_ATOM}updated")
             )
-            if title and link.startswith("https://"):
+            if title and is_https_url(link):
                 items.append(FeedItem(title, link, summary, external_id, normalize_published(published)))
         return tuple(items)
 
