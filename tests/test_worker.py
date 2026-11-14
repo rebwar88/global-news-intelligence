@@ -109,3 +109,48 @@ def test_worker_marks_exhausted_interrupted_attempt_failed():
     assert outcome.action == "failed_after_interrupted_attempt"
     assert repository.get(job.id).job.status == JobStatus.FAILED
     assert queue.reserve(worker_id="next", visibility_timeout_seconds=30) is None
+
+
+
+@dataclass
+class PermanentFailureAgent:
+    agent_id: str = "sample-agent"
+
+    def run(self, context, payload):
+        return AgentResult(AgentStatus.FAILED, error_code="permanent_failure")
+
+
+def test_worker_sends_permanent_failure_to_dead_letter():
+    worker, queue, repository, job = make_worker(PermanentFailureAgent())
+    outcome = worker.process_one()
+    assert outcome.status == JobStatus.FAILED
+    assert outcome.action == "dead_lettered"
+    assert len(queue.dead_letters) == 1
+    assert queue.dead_letters[0][0].id == job.id
+    assert queue.dead_letters[0][1] == "permanent_failure"
+
+
+def test_worker_supervisor_polls_and_stops_cooperatively():
+    import threading
+    from gni.runtime.supervisor import WorkerSupervisor
+
+    worker, _, _, _ = make_worker(SuccessAgent())
+    stop = threading.Event()
+    supervisor = WorkerSupervisor(worker, poll_interval_seconds=0.001)
+    stats = supervisor.run(stop, max_polls=3)
+    assert stats.processed == 1
+    assert stats.idle_polls == 2
+    assert stats.errors == 0
+
+
+def test_process_isolated_runner_executes_agent_with_resource_limits():
+    from gni.runtime.isolation import IsolationLimits, ProcessIsolatedAgentRunner
+    from gni.contracts.agent import AgentContext
+
+    if __import__("os").name != "posix":
+        return
+    result = ProcessIsolatedAgentRunner(
+        IsolationLimits(timeout_seconds=5, memory_bytes=256 * 1024 * 1024, cpu_seconds=4)
+    ).run(SuccessAgent(), AgentContext("job-1", "trace-1"), {"value": "isolated"})
+    assert result.status == AgentStatus.SUCCEEDED
+    assert result.output == {"value": "isolated"}
