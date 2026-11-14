@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from gni.contracts.jobs import Job, JobStatus
+from gni.contracts.jobs import JobStatus
 from gni.persistence.base import JobRecord, JobRepository
 from gni.queue.base import JobQueue
 from gni.runtime.dispatcher import AgentDispatcher, DispatchError
@@ -75,6 +75,9 @@ class JobWorker:
                 self._queue.release(reservation)
                 return WorkerOutcome(job_id, job.status, "state_conflict")
             job = recovered
+            if job.status == JobStatus.FAILED:
+                self._queue.acknowledge(reservation)
+                return WorkerOutcome(job_id, job.status, "failed_after_interrupted_attempt")
 
         running = job.start()
         if not self._repository.save(
