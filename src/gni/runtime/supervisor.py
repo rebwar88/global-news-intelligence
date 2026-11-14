@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import threading
-from dataclasses import dataclass
 from collections.abc import Callable
+from dataclasses import dataclass
 
 from gni.runtime.worker import JobWorker, WorkerOutcome
 
