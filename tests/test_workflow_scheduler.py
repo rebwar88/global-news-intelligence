@@ -72,7 +72,7 @@ def test_scheduler_only_submits_dependent_step_after_success():
 
 
 def test_failed_step_blocks_descendants_but_not_independent_branches():
-    scheduler, jobs, queue = make_scheduler()
+    scheduler, jobs, _queue = make_scheduler()
     run = scheduler.start(WorkflowPlan("wf-branches", (
         WorkflowStep("collect", "collector"),
         WorkflowStep("independent", "translator"),
@@ -108,7 +108,7 @@ class FailOnceQueue:
 
 def test_scheduler_recovers_pending_queue_publication():
     queue = FailOnceQueue(InMemoryJobQueue())
-    scheduler, jobs, _ = make_scheduler(queue)
+    scheduler, _jobs, _ = make_scheduler(queue)
     run = scheduler.start(WorkflowPlan(
         "wf-pending", (WorkflowStep("collect", "collector"),)
     ))
