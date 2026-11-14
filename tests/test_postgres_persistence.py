@@ -102,6 +102,7 @@ def test_postgres_workflow_repository_round_trip_and_cas(persistence):
     assert repository.create(run) is True
     assert repository.create(run) is False
     assert repository.get(run.workflow_id) == run
+    assert repository.list_active(limit=10) == (run,)
 
     updated = replace(
         run,
@@ -185,3 +186,34 @@ def test_postgres_queue_moves_failed_job_to_dead_letter(persistence):
             (job.id,),
         ).fetchone()
     assert row[0] == "permanent_failure"
+
+
+
+def test_postgres_dead_letter_can_be_inspected_and_replayed(persistence):
+    job = Job(
+        agent_id="collector", payload={"feed": "manual-replay"},
+        status=JobStatus.FAILED, attempt=2,
+    )
+    assert persistence.create(JobRecord(job, error={"error_code": "failed"}), idempotency_key=f"job:{job.id}")
+    queue = PostgresJobQueue(persistence._pool)
+    assert queue.enqueue(job, idempotency_key=f"queue:{job.id}")
+    reservation = queue.reserve(worker_id="worker-a", visibility_timeout_seconds=30)
+    assert reservation is not None
+    queue.dead_letter(reservation, error_code="manual_review")
+
+    dead = queue.list_dead_letters(limit=10)
+    assert len(dead) == 1
+    assert dead[0]["job_id"] == job.id
+    assert dead[0]["attempt_count"] == 2
+
+    assert queue.requeue_dead_letter(job.id, reason="editor approved replay") is True
+    assert queue.requeue_dead_letter(job.id, reason="duplicate request") is False
+    refreshed = persistence.get(job.id)
+    assert refreshed.job.status == JobStatus.RETRYABLE
+    assert refreshed.job.attempt == 0
+    assert queue.list_dead_letters(limit=10) == ()
+
+    replay = queue.reserve(worker_id="worker-b", visibility_timeout_seconds=30)
+    assert replay is not None
+    assert replay.job.status == JobStatus.RETRYABLE
+    queue.acknowledge(replay)
