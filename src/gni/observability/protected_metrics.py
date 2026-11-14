@@ -25,7 +25,7 @@ class ProtectedMetricsApp:
         bearer_token: str,
         path: str = "/metrics",
     ) -> None:
-        if not bearer_token or any(character.isspace() for character in bearer_token):
+        if not bearer_token or not bearer_token.isascii() or any(character.isspace() for character in bearer_token):
             raise ValueError("A non-empty metrics bearer token without whitespace is required.")
         self._token = bearer_token
         self._path = path
