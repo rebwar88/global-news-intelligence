@@ -25,7 +25,7 @@ Current runtime metrics:
 | `gni_workers_running` | Gauge | none | Active supervisor loops in this process |
 | `gni_worker_errors_total` | Counter | exception class | Unhandled worker-loop exceptions |
 | `gni_audit_write_failures_total` | Counter | none | Failed durable audit writes |
-| `gni_metrics_write_failures_total` | Counter | none | Metric write failures, such as series limit exhaustion |
+| `gni_metrics_write_failures_total` | Counter | none | Metric write failures, such as series limit exhaustion |\n| `gni_workflow_runs_total` | Counter | action, status | Workflow scheduler advances and observed run status |\n| `gni_workflow_steps_observed_total` | Counter | status | Step states observed during workflow advancement |\n| `gni_workflow_operation_duration_seconds` | Histogram | action | Workflow scheduler operation duration |\n| `gni_workflow_recovery_runs_total` | Counter | result | Workflow recovery scans |\n| `gni_workflow_recovery_items_total` | Counter | result | Recovery items scanned, advanced, completed or failed |\n| `gni_outbox_events_total` | Counter | action | Outbox publication outcomes, including retries and dead letters |\n| `gni_outbox_publish_duration_seconds` | Histogram | action | Outbox event publication duration |\n| `gni_queue_operations_total` | Counter | action, result | PostgreSQL queue enqueue/reserve/ack/release/dead-letter/replay results |\n| `gni_dead_letter_events_total` | Counter | action, reason | Dead-letter creation and operator replay |
 
 The registry exports Prometheus 0.0.4 text. A WSGI-compatible scrape app is available:
 
