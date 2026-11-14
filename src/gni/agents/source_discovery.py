@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import ipaddress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 from urllib.parse import urlsplit
 
@@ -25,8 +25,6 @@ class SourceCandidate:
     original_reporting: bool = False
     independent_reporting: bool = False
     known_copying_network: bool = False
-    human_approved: bool = False
-    approval_reference: str | None = None
     evidence_urls: tuple[str, ...] = ()
 
 
@@ -55,7 +53,7 @@ def _public_https_url(value: str) -> bool:
         return False
 
 
-def evaluate_candidate(candidate: SourceCandidate) -> dict[str, object]:
+def evaluate_candidate(\n    candidate: SourceCandidate, *, approval_reference: str | None = None\n) -> dict[str, object]:
     """Score only supplied, inspectable facts; never infer truth from popularity."""
     reasons: list[str] = []
     if not candidate.source_id or len(candidate.source_id) > 63:
@@ -99,16 +97,14 @@ def evaluate_candidate(candidate: SourceCandidate) -> dict[str, object]:
     if score < 30:
         tier = "C"
         approval_status = "rejected"
-    elif score >= 75 and candidate.human_approved and candidate.approval_reference:
+    elif score >= 75 and approval_reference and approval_reference.strip():
         tier = "A"
         approval_status = "human_approved"
     else:
         tier = "B"
         approval_status = "awaiting_human_review"
-        if score >= 75 and not candidate.human_approved:
+        if score >= 75 and not approval_reference:
             reasons.append("high_score_is_not_approval")
-        if candidate.human_approved and not candidate.approval_reference:
-            reasons.append("approval_reference_missing")
 
     evidence = [url for url in candidate.evidence_urls if _public_https_url(url)]
     return {
@@ -131,6 +127,7 @@ class SourceDiscoveryAgent:
     agent_id: str
     provider: CandidateProvider
     max_candidates: int = 50
+    approval_references: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.agent_id != "source-discovery":
@@ -187,7 +184,13 @@ class SourceDiscoveryAgent:
                 message="Discovery provider returned duplicate candidate identifiers.",
             )
         try:
-            evaluated = [evaluate_candidate(candidate) for candidate in candidates]
+            evaluated = [
+                evaluate_candidate(
+                    candidate,
+                    approval_reference=self.approval_references.get(candidate.source_id),
+                )
+                for candidate in candidates
+            ]
         except (AttributeError, TypeError, ValueError):
             return AgentResult(
                 status=AgentStatus.FAILED,
