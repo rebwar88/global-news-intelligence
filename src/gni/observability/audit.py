@@ -6,7 +6,7 @@ import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Protocol
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 _SENSITIVE = (
     "password", "secret", "token", "authorization", "cookie", "credential",
@@ -58,6 +58,14 @@ class AuditEvent:
             value = getattr(self, field_name)
             if value is not None and len(value) > 255:
                 raise ValueError(f"{field_name} must not exceed 255 characters.")
+        try:
+            UUID(self.event_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("event_id must be a UUID.") from exc
+        if self.occurred_at.tzinfo is None or self.occurred_at.utcoffset() is None:
+            raise ValueError("occurred_at must be timezone-aware.")
+        if not isinstance(self.metadata, dict):
+            raise TypeError("Audit metadata must be a mapping.")
         safe = _safe_value(self.metadata)
         try:
             json.dumps(safe, allow_nan=False)
