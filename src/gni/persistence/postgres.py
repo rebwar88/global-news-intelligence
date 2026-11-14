@@ -13,7 +13,10 @@ from gni.orchestration.planner import ExecutionPlan, WorkflowStep
 from gni.persistence.base import JobRecord
 from gni.persistence.outbox import OutboxEvent, OutboxLease, OutboxStatus
 from gni.persistence.workflows import (
-    WorkflowRun, WorkflowStatus, WorkflowStepState, WorkflowStepStatus,
+    WorkflowRun,
+    WorkflowStatus,
+    WorkflowStepState,
+    WorkflowStepStatus,
 )
 
 
