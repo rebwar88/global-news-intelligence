@@ -72,11 +72,13 @@ class JobWorker:
         return outcome
 
     def _result(
-        self, reservation, status: JobStatus | None, action: str
+        self, reservation, status: JobStatus | None, action: str,
+        *, attempt: int | None = None,
     ) -> WorkerOutcome:
         return WorkerOutcome(
             reservation.job.id, status, action, reservation.job.trace_id,
-            reservation.job.agent_id, reservation.job.attempt,
+            reservation.job.agent_id,
+            reservation.job.attempt if attempt is None else attempt,
         )
 
     def _process_one(self) -> WorkerOutcome | None:
@@ -99,10 +101,10 @@ class JobWorker:
                 reservation,
                 error_code=(record.error.get("error_code") or "job_failed"),
             )
-            return self._result(reservation, job.status, "dead_lettered_terminal")
+            return self._result(reservation, job.status, "dead_lettered_terminal", attempt=job.attempt)
         if job.status in {JobStatus.SUCCEEDED, JobStatus.CANCELLED}:
             self._queue.acknowledge(reservation)
-            return self._result(reservation, job.status, "acknowledged_terminal")
+            return self._result(reservation, job.status, "acknowledged_terminal", attempt=job.attempt)
 
         if job.status == JobStatus.RUNNING:
             recovered = job.recover()
@@ -111,11 +113,11 @@ class JobWorker:
                 expected_status=JobStatus.RUNNING,
             ):
                 self._queue.release(reservation)
-                return self._result(reservation, job.status, "state_conflict")
+                return self._result(reservation, job.status, "state_conflict", attempt=job.attempt)
             job = recovered
             if job.status == JobStatus.FAILED:
                 self._queue.dead_letter(reservation, error_code="attempts_exhausted")
-                return self._result(reservation, job.status, "failed_after_interrupted_attempt")
+                return self._result(reservation, job.status, "failed_after_interrupted_attempt", attempt=job.attempt)
 
         running = job.start()
         if not self._repository.save(
@@ -146,11 +148,11 @@ class JobWorker:
 
         if final_job.status == JobStatus.RETRYABLE:
             self._queue.release(reservation, delay_seconds=self._retry_delay)
-            return self._result(reservation, final_job.status, "released_for_retry")
+            return self._result(reservation, final_job.status, "released_for_retry", attempt=running.attempt)
 
         if final_job.status == JobStatus.FAILED:
             error_code = final_record.error.get("error_code") or "job_failed"
             self._queue.dead_letter(reservation, error_code=error_code)
-            return self._result(reservation, final_job.status, "dead_lettered")
+            return self._result(reservation, final_job.status, "dead_lettered", attempt=running.attempt)
         self._queue.acknowledge(reservation)
-        return self._result(reservation, final_job.status, "completed")
+        return self._result(reservation, final_job.status, "completed", attempt=running.attempt)
