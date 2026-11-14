@@ -98,3 +98,29 @@ The repository does not yet include a Prometheus server, Grafana dashboards, ale
 rules, external log aggregation or model-provider token/cost instrumentation. Add
 provider usage metrics only when model adapters expose trustworthy token and cost
 usage; never estimate billing from prompt length and present it as actual spend.
+
+
+## Durable runtime health snapshots
+
+`PostgresRuntimeHealthCollector` periodically reads aggregate state from the
+PostgreSQL queue, transactional outbox, workflow and dead-letter tables. It
+publishes gauges for ready backlog, processing reservations, expired leases,
+oldest pending age, running workflows and unresolved dead letters. It exports
+counts and ages only; job IDs, source URLs, payloads and credentials are never
+used as metric labels or values.
+
+Compose it with the same telemetry registry used by the runtime and call
+`collect()` on a bounded interval (for example, every 30–60 seconds):
+
+```python
+from gni.observability import PostgresRuntimeHealthCollector
+
+health = PostgresRuntimeHealthCollector(pool, telemetry)
+snapshot = health.collect()
+```
+
+The collector is PostgreSQL-specific by design, while the metrics contract
+remains provider-neutral. It must run with read access to the four runtime
+tables. A failed query is surfaced to the caller so the scheduler can log and
+retry it; it does not silently publish a zero snapshot. Gauges are process-local
+and should be scraped from the collector process.
