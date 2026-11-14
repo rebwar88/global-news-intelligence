@@ -96,7 +96,7 @@ def test_worker_discards_queue_item_without_authoritative_record():
 def test_job_recovery_moves_interrupted_run_to_retryable_or_failed():
     running = Job(agent_id="sample-agent", payload={}, max_attempts=2).start()
     assert running.recover().status == JobStatus.RETRYABLE
-    exhausted = running.start().recover()
+    exhausted = running.recover().start().recover()
     assert exhausted.status == JobStatus.FAILED
 
 
