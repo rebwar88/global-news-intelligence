@@ -67,6 +67,7 @@ class JobWorker:
                 action=outcome.action,
                 duration_seconds=max(0.0, perf_counter() - started),
                 attempt=outcome.attempt,
+                agent_id=outcome.agent_id or "unknown",
             )
         return outcome
 
