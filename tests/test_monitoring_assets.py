@@ -82,6 +82,7 @@ def test_dashboard_and_alerts_cover_durable_backlog_health_metrics():
         "gni_outbox_pending_events", "gni_outbox_processing_events",
         "gni_outbox_expired_leases", "gni_outbox_oldest_pending_seconds",
         "gni_workflows_running", "gni_dead_letters_open",
+        "gni_health_collection_errors_total",
     ):
         assert metric in queries
         assert metric in expressions
