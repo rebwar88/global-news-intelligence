@@ -73,7 +73,7 @@ class NewsCollectionAgent:
                     continue
                 stable_key = item.external_id.strip() or item.url
                 article_id = hashlib.sha256(
-                    f"{source_id}\0{stable_key}".encode("utf-8")
+                    f"{source_id}\0{stable_key}".encode()
                 ).hexdigest()
                 articles.append(
                     {
