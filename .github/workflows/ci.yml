@@ -32,6 +32,14 @@ jobs:
       - name: Install project
         run: python -m pip install -e ".[dev,postgres,monitoring]"
       - name: Run tests
-        run: pytest
+        run: pytest --junitxml=artifacts/junit.xml
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-report
+          path: artifacts/junit.xml
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Lint
         run: ruff check .
