@@ -1002,6 +1002,48 @@
       ],
       "title": "Health collection errors (15m)",
       "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 60
+      },
+      "id": 25,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(gni_outbox_processing_events)",
+          "legendFormat": "Processing outbox events",
+          "refId": "A"
+        }
+      ],
+      "title": "Outbox events processing",
+      "type": "stat"
     }
   ],
   "refresh": "30s",
@@ -1021,6 +1063,6 @@
   "timezone": "browser",
   "title": "Global News Intelligence — Runtime",
   "uid": "gni-runtime",
-  "version": 3,
+  "version": 4,
   "weekStart": ""
 }
