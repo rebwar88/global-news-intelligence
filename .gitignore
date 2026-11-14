@@ -13,3 +13,8 @@ dist/
 build/
 *.egg-info/
 .DS_Store
+
+# Monitoring secrets and local deployment credentials
+/monitoring/secrets/
+/monitoring/.env
+!monitoring/.env.example

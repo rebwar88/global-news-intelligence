@@ -50,3 +50,7 @@ dead letters. Give the collector a read-only database role for these tables.
 Do not interpret missing gauge series as zero: verify the collector is running
 and being scraped. Thresholds in the alert rules are starting defaults and
 must be tuned after observing real traffic.
+
+## Docker Compose deployment
+
+A complete private-by-default stack is provided in `compose.yml`, with Prometheus, Grafana and Alertmanager configuration. Follow `DEPLOYMENT.md` for host prerequisites, secret setup, worker network binding, validation, backups and startup commands. The stack binds its web ports to loopback only. Alertmanager intentionally has no external notification receiver until an operator configures an approved destination.
