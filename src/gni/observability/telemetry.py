@@ -16,18 +16,24 @@ class RuntimeTelemetry:
 
     def record_job(
         self, *, worker_id: str, job_id: str, trace_id: str, status: str,
-        action: str, duration_seconds: float, attempt: int,
+        action: str, duration_seconds: float, attempt: int, agent_id: str = "unknown",
     ) -> None:
-        labels = {"status": status or "unknown", "action": action}
-        self.metrics.increment(
-            "gni_jobs_processed_total", labels=labels,
-            help_text="Jobs handled by workers, including terminal redeliveries.",
-        )
-        self.metrics.observe(
-            "gni_job_processing_duration_seconds", duration_seconds,
-            labels={"action": action},
-            help_text="Time spent processing a reserved job, in seconds.",
-        )
+        labels = {"status": status or "unknown", "action": action, "agent": agent_id}
+        try:
+            self.metrics.increment(
+                "gni_jobs_processed_total", labels=labels,
+                help_text="Jobs handled by workers, including terminal redeliveries.",
+            )
+            self.metrics.observe(
+                "gni_job_processing_duration_seconds", duration_seconds,
+                labels={"action": action, "agent": agent_id},
+                help_text="Time spent processing a reserved job, in seconds.",
+            )
+        except Exception:  # noqa: BLE001 - observability must not interrupt job handling.
+            self.metrics.increment(
+                "gni_metrics_write_failures_total",
+                help_text="Metric recording failures, usually caused by cardinality limits.",
+            )
         self._record_audit(AuditEvent(
             action="job.processed", resource_type="job", resource_id=job_id,
             actor_type="worker", actor_id=worker_id, trace_id=trace_id,
