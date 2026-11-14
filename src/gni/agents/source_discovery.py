@@ -77,7 +77,7 @@ def evaluate_candidate(
     if not isinstance(candidate.name, str) or not candidate.name.strip():
         raise ValueError("Candidate name is required.")
     if not isinstance(candidate.website_url, str):
-        raise ValueError("Candidate website URL must be a string.")
+        raise TypeError("Candidate website URL must be a string.")
     if any(type(getattr(candidate, field_name)) is not bool for field_name in _BOOLEAN_FIELDS):
         raise ValueError("Candidate verification flags must be booleans.")
     for field_name in ("regions", "topics", "evidence_urls"):
