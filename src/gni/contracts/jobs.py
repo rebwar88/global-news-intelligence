@@ -67,6 +67,12 @@ class Job:
         self._require_running()
         return replace(self, status=JobStatus.FAILED)
 
+    def recover(self) -> Job:
+        """Mark a persisted RUNNING attempt as interrupted after lease expiry."""
+        self._require_running()
+        next_status = JobStatus.RETRYABLE if self.attempt < self.max_attempts else JobStatus.FAILED
+        return replace(self, status=next_status)
+
     def cancel(self) -> Job:
         if self.status in _TERMINAL:
             raise ValueError(f"Cannot cancel terminal job in {self.status}.")
