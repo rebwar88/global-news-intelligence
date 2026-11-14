@@ -45,13 +45,13 @@ class RuntimeTelemetry:
         self.metrics.increment(
             "gni_worker_starts_total", help_text="Worker supervisor starts."
         )
-        self.metrics.set_gauge(
+        self.metrics.adjust_gauge(
             "gni_workers_running", 1, help_text="Worker supervisor processes currently running."
         )
 
     def worker_stopped(self) -> None:
-        self.metrics.set_gauge(
-            "gni_workers_running", 0, help_text="Worker supervisor processes currently running."
+        self.metrics.adjust_gauge(
+            "gni_workers_running", -1, help_text="Worker supervisor processes currently running."
         )
 
     def record_worker_error(self, *, worker_id: str, error: Exception) -> None:
