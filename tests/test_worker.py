@@ -7,12 +7,12 @@ import pytest
 
 from gni.contracts import AgentResult, AgentStatus, Job, JobStatus
 from gni.contracts.agent import AgentContext
+from gni.observability import InMemoryAuditSink, MetricsRegistry, RuntimeTelemetry
 from gni.persistence import InMemoryJobRepository, JobRecord
 from gni.queue import InMemoryJobQueue
 from gni.registry import PluginManifest, PluginRegistry
 from gni.runtime import AgentDispatcher, JobWorker, WorkerSupervisor
 from gni.runtime.isolation import IsolationLimits, ProcessIsolatedAgentRunner
-from gni.observability import InMemoryAuditSink, MetricsRegistry, RuntimeTelemetry
 
 
 @dataclass
