@@ -22,3 +22,13 @@ The worker provides at-least-once processing, not exactly-once side effects. Age
 The in-memory queue is not suitable for GitHub Actions across separate runs. It does not implement real visibility-timeout expiry or delayed delivery. No durable database/queue adapter, polling supervisor, lease renewal, process sandbox, CPU/memory/wall-clock enforcement, cancellation signal handling, metrics exporter or audit-event sink exists yet.
 
 The dispatcher is synchronous and does not execute untrusted plugin code in an isolated process. Do not expose it to arbitrary third-party plugins. The next architecture decision is the durable queue provider and database hosting. Do not persist critical state in a GitHub runner filesystem or workflow artifacts.
+
+
+## Orchestration and submission
+
+- The Orchestrator validates declarative workflow DAGs, checks that every referenced agent is registered and explicitly active, rejects missing dependencies and cycles, and returns a deterministic topological order.
+- The planner is data-driven: it does not hardcode the current 12-agent catalogue, so new registered agents can participate without editing Orchestrator code.
+- Job submission validates agent activation, persists the job before queue publication, and uses an idempotency key to avoid creating duplicate jobs. Repeated submissions can re-attempt queue publication for a still-queued job.
+- If queue publication fails, the service raises `SubmissionPendingError` with the persisted job ID. The record is retained so a later retry can publish it; callers must not treat this as queued.
+- This first Orchestrator increment plans workflows but does not yet persist workflow-run state or automatically release dependent steps after predecessor completion. Those require a durable workflow-state/scheduler adapter.
+- The current persist-then-enqueue sequence is not an atomic transaction. Production persistence/queue integration should use a transactional outbox (or an equivalent recoverable publisher) to close the crash window between database commit and queue publication. The in-memory adapters remain development/test only.
